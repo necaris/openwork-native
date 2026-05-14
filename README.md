@@ -42,6 +42,13 @@ mask build
 swift run OpenWorkNative
 ```
 
+Run lint and tests:
+
+```sh
+mask lint
+mask test
+```
+
 Build a local unsigned `.app` bundle:
 
 ```sh

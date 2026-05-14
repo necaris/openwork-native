@@ -21,6 +21,34 @@ swift test --enable-swift-testing \
   -Xlinker -rpath -Xlinker /Library/Developer/CommandLineTools/Library/Developer/usr/lib
 ```
 
+## lint
+
+Run standard Swift lint tools. Requires `swiftformat` and `swiftlint` on `PATH`.
+
+```bash
+set -euo pipefail
+
+missing=0
+
+if command -v swiftformat >/dev/null 2>&1; then
+  swiftformat --lint Package.swift Sources Tests
+else
+  printf 'Missing swiftformat. Install with: brew install swiftformat\n' >&2
+  missing=1
+fi
+
+if command -v swiftlint >/dev/null 2>&1; then
+  swiftlint lint --strict
+else
+  printf 'Missing swiftlint. Install with: brew install swiftlint\n' >&2
+  missing=1
+fi
+
+if [ "${missing}" -ne 0 ]; then
+  exit 1
+fi
+```
+
 ## app
 
 Build a local unsigned macOS `.app` bundle.
