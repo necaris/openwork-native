@@ -20,15 +20,18 @@ struct ActivityView: View {
                             Text(request.reason)
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
+                            Text("Session: \(request.sessionTitle)")
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
                             HStack {
                                 Button("Allow Once") {
-                                    appState.resolvePermission(request, decision: "allowed once")
+                                    appState.resolvePermission(request, decision: .once)
                                 }
                                 Button("Deny") {
-                                    appState.resolvePermission(request, decision: "denied")
+                                    appState.resolvePermission(request, decision: .reject)
                                 }
                                 Button("Always Allow") {
-                                    appState.resolvePermission(request, decision: "always allowed")
+                                    appState.resolvePermission(request, decision: .always)
                                 }
                             }
                         }

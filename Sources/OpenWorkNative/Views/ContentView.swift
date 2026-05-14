@@ -4,12 +4,27 @@ struct ContentView: View {
     @EnvironmentObject private var appState: AppState
 
     var body: some View {
-        NavigationSplitView {
-            SidebarView()
-        } content: {
-            TranscriptView()
-        } detail: {
-            ActivityView()
+        VStack(spacing: 0) {
+            if let error = appState.errorBanner {
+                HStack {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                    Text(error)
+                        .lineLimit(2)
+                    Spacer()
+                }
+                .font(.caption)
+                .foregroundStyle(.white)
+                .padding(8)
+                .background(Color.red)
+            }
+
+            NavigationSplitView {
+                SidebarView()
+            } content: {
+                TranscriptView()
+            } detail: {
+                ActivityView()
+            }
         }
         .toolbar {
             ToolbarItemGroup {

@@ -71,6 +71,10 @@ private struct EmptyTranscriptView: View {
 private struct MessageBubble: View {
     let message: TranscriptMessage
 
+    private var markdownContent: AttributedString {
+        (try? AttributedString(markdown: message.content)) ?? AttributedString(message.content)
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack {
@@ -91,7 +95,17 @@ private struct MessageBubble: View {
                 .buttonStyle(.borderless)
             }
 
-            Text(message.content)
+            if let thinking = message.thinking, !thinking.isEmpty {
+                DisclosureGroup("Thinking") {
+                    Text(thinking)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .textSelection(.enabled)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+            }
+
+            Text(markdownContent)
                 .textSelection(.enabled)
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
