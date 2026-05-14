@@ -171,3 +171,26 @@ An intermediate server can be introduced later if remote support or stronger abs
 6. Handle permission prompts.
 7. Show changed files.
 8. Configure model/API key enough to get running.
+
+## Current Implementation Status (2026-05-14)
+
+Implemented so far:
+
+- Native SwiftUI shell for workspace, sessions, transcript, activity, settings and runtime controls.
+- Recent workspace persistence.
+- OpenCode process launch on an ephemeral localhost port with stdout/stderr capture and unexpected-exit reporting.
+- Async OpenCode HTTP client for sessions, messages, prompt send, abort, permission replies, changed files, providers/models and event stream setup.
+- SSE parsing and event handling for transcript deltas, reasoning/thinking parts, todos, tool calls, session status/errors, permissions and file-change refreshes.
+- Markdown transcript rendering, message copy, changed-file actions and provider/auth error surfacing.
+- Git-status fallback for changed files.
+- Local unsigned `.app` packaging plus Swift tests for API/event parsing and git-status parsing.
+
+Remaining before calling the MVP shippable:
+
+- Validate the assumed OpenCode routes and event payloads against a live/current OpenCode install (`git issue #a62f634`).
+- Add startup health polling, graceful app-quit shutdown and better runtime recovery (`#5a26fd5`).
+- Finish model/provider settings write path or explicitly make first ship read-only with clear setup guidance (`#e4811fd`).
+- Polish transcript/activity UX: code-block copy, retry/edit-resend, activity grouping/history caps and richer running-step transitions (`#20d3fd5`).
+- Decide and implement any local persistent Always Allow permission policy (`#535e7d9`).
+- Add read-only skills/commands/plugins/MCP inventory if time permits (`#fbd6b56`).
+- Complete release hardening: lint availability, accessibility, dark-mode review and signing/notarization documentation (`#1898b86`). Raw Swift Testing discovery is confirmed with 7 passing tests.

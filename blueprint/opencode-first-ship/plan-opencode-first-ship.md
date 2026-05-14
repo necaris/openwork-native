@@ -42,30 +42,53 @@
 - Existing skills, commands, plugins, and MCP config may be detected read-only if cheap, but they are not on the critical path.
 - The app can be built as a local `.app` bundle, even if signing/notarization is deferred.
 
+## Status snapshot (2026-05-14)
+
+The first-shippable integration plan is implemented in the codebase at a
+pre-alpha level: the app builds, has an async OpenCode HTTP client, launches a
+local OpenCode process, parses SSE events, streams transcript updates, resolves
+permissions, loads provider/status data, and has unit coverage for parsers and
+DTO mapping.
+
+The remaining work is tracked in `git issue` and summarized in `TODO.md`:
+
+- `#a62f634` Verify OpenCode API contract and live smoke path.
+- `#5a26fd5` Harden runtime and workspace lifecycle.
+- `#e4811fd` Finish model/provider settings write path.
+- `#20d3fd5` Polish transcript and activity UX.
+- `#535e7d9` Persist and manage permission always-allow policy.
+- `#fbd6b56` Add read-only skills commands plugins and MCP inventory.
+- `#1898b86` Release hardening accessibility and packaging.
+
+Verification note: raw `swift test --enable-swift-testing ...` passes 7 tests;
+any earlier `0 passed` summary was harness aggregation noise rather than test
+discovery failure.
+
 ## Changes
 
-- [x] Verify OpenCode APIs and document the confirmed routes/events for sessions, messages, streaming, abort, permissions, config, models/providers, file status, and event/SSE activity.
+- [~] Verify OpenCode APIs and document the confirmed routes/events for sessions, messages, streaming, abort, permissions, config, models/providers, file status, and event/SSE activity. _Implemented against assumed/current routes; live validation remains in `#a62f634`._
 - [x] Replace `OpenCodeClient` stubs with an async HTTP/SSE client backed by `URLSession`.
 - [x] Add API DTOs and mapping code from OpenCode payloads into existing app models.
 - [x] Change `OpenCodeSession.id` from local-only `UUID` semantics to OpenCode-owned session identifiers.
-- [x] Add loading and error states for session list, selected-session history, transcript stream, settings, permissions, and changed files.
+- [~] Add loading and error states for session list, selected-session history, transcript stream, settings, permissions, and changed files. _Error banner exists; richer per-list loading/error states remain in `#20d3fd5` / `#1898b86`._
 - [x] Update `AppState.openWorkspace`, `createSession`, `sendPrompt`, and `stopSelectedSession` to call real async client methods.
-- [x] Track per-session streaming tasks so abort and workspace/session switches cancel cleanly.
-- [x] Add an SSE parser that can append assistant deltas, finish streamed messages, surface errors, separate thinking content when available, and translate todo events into activity rows.
-- [x] Add message-history loading on session selection after initial metadata display.
-- [x] Add markdown rendering for transcript content, at minimum with SwiftUI `AttributedString(markdown:)` or an equivalent lightweight renderer.
+- [~] Track per-session streaming tasks so abort and workspace/session switches cancel cleanly. _Global event and message tasks exist; live cancellation semantics still need smoke validation in `#a62f634`._
+- [x] Add an SSE parser that can append assistant deltas, surface errors, separate thinking content when available, and translate todo events into activity rows.
+- [x] Add message-history loading on session selection.
+- [x] Add markdown rendering for transcript content with SwiftUI `AttributedString(markdown:)` fallback behavior.
 - [x] Add permission event decoding and a response path for allow-once, deny, and API-supported always-allow decisions.
-- [x] Keep local persistent always-allow rule management out of the first ship unless the verified OpenCode API makes it trivial.
-- [x] Extend `OpenCodeProcessManager` to choose an available ephemeral port, launch OpenCode with that port, capture stdout/stderr, and notify `AppState` on unexpected termination.
+- [ ] Add local persistent always-allow rule management if OpenCode does not provide sufficient persistence (`#535e7d9`).
+- [~] Extend `OpenCodeProcessManager` to choose an available ephemeral port, launch OpenCode with that port, capture stdout/stderr, and notify `AppState` on unexpected termination. _Startup health polling, graceful app-quit shutdown, and restart UX remain in `#5a26fd5`._
 - [x] Add runtime error presentation for missing OpenCode, failed launches, unexpected exits, and captured stderr details.
-- [x] Add a main-window banner/error surface for OpenCode auth/config failures, with detailed read-only information in `SettingsView`.
+- [x] Add a main-window banner/error surface for OpenCode auth/config failures, with read-only information in `SettingsView`.
 - [x] Add a changed-file service that prefers OpenCode status data and falls back to parsing `git status --porcelain` in the workspace.
-- [x] Add read-only provider/model config loading from OpenCode or its config source, without editing or keychain entry in this pass.
+- [~] Add read-only provider/model config loading from OpenCode or its config source, without editing or keychain entry in this pass. _Write/persist behavior is `#e4811fd`._
 - [x] Preserve and wire existing workspace behavior: folder picker, recent workspaces, current workspace path, and runtime controls.
 - [x] Preserve and wire existing file actions: open externally, reveal in Finder, and copy path.
-- [x] Optionally add read-only detection for `.agents/skills`, commands, plugins, and MCP config only after the first-ship stable.
+- [ ] Add read-only detection for `.agents/skills`, commands, plugins, and MCP config (`#fbd6b56`).
 - [x] Add a test target in `Package.swift`.
 - [x] Add unit tests for API decoding, SSE parsing, permission decoding, and git-status parsing.
-- [x] Add service-level tests using mocked networking and process-running abstractions.
-- [x] Add minimal `.app` bundle support with Info.plist/app metadata and a documented entitlements/hardened-runtime decision.
+- [~] Add service-level tests using mocked networking and process-running abstractions. _Mocked networking tests exist; process-running abstraction/tests remain release-hardening work._
+- [x] Add minimal `.app` bundle support with Info.plist/app metadata.
+- [ ] Document signing/notarization/hardened-runtime decisions beyond local unsigned builds (`#1898b86`).
 - [x] Keep UI changes incremental by reusing `TranscriptView`, `ActivityView`, `SidebarView`, and `SettingsView` rather than redesigning the shell.

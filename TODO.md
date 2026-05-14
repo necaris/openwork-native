@@ -1,179 +1,178 @@
 # OpenWork Native — TODO
 
-Scoped to the MVP defined in [SPEC.md](SPEC.md). Items below are derived by
-diffing the spec against what currently lives in `Sources/OpenWorkNative/`.
+Scoped to the MVP in [SPEC.md](SPEC.md). This file is the human-readable
+checklist; open work is mirrored in `git issue`.
 
-Legend: `[x]` shipped · `[~]` partial / stubbed · `[ ]` not started.
+Task tracking status: `.ba/` is not initialized in this repo, so the active
+tracker is `git issue` plus this `TODO.md` summary.
 
----
-
-- [x] Implement first-shippable OpenCode integration
-- [x] Map OpenCode HTTP API types (Sessions, Messages, Parts)
-- [x] Parse OpenCode event stream (SSE) for transcripts, tool usage, and permission states
-- [x] Launch OpenCode on ephemeral port, supervise process and errors
-- [x] Expose `mask app` task to package `.app` bundle
+Legend: `[x]` shipped · `[~]` partial / needs validation · `[ ]` remaining.
 
 ---
 
-## 1. Local Workspace Management — spec §1
+## Progress so far
 
-- [x] Folder picker via `NSOpenPanel` — `AppState.pickWorkspace()`
-- [x] Recent-workspaces list, persisted via `UserDefaults` (`WorkspaceStore`)
-- [x] Display current workspace path + runtime status in sidebar
-- [x] Start/Stop OpenCode buttons in toolbar
-- [~] Process supervision — `OpenCodeProcessManager` only `Process().run()` / `terminate()`. Missing:
-  - [ ] Capture stdout/stderr (`Pipe`) and surface in activity log
-  - [ ] Detect crash / unexpected exit (`terminationHandler`) and update `runtimeStatus`
-  - [ ] Health check (poll the local server endpoint after start)
-  - [ ] Configurable port / discover the server's bound port instead of assuming defaults
-  - [ ] Pass workspace path explicitly (currently relies on `currentDirectoryURL`)
-  - [ ] Graceful shutdown on app quit (`NSApplication.willTerminate`)
-  - [ ] Restart-on-failure policy (or at minimum a "Restart" button)
-- [ ] Security-scoped bookmarks so recent workspaces survive sandboxing / relaunch
-- [ ] Keychain integration for any per-workspace secrets (spec calls this out; nothing is wired)
-- [ ] Validate workspace path still exists when re-opening from "Recent"
-- [ ] Per-workspace preferences store (currently global `UserDefaults` only)
+- [x] SwiftUI macOS shell with workspace picker, sidebar, transcript, activity,
+      settings, and toolbar runtime controls.
+- [x] Recent workspaces persisted with `UserDefaults` via `WorkspaceStore`.
+- [x] OpenCode process launch on an ephemeral localhost port.
+- [x] OpenCode stdout/stderr capture with unexpected-exit reporting.
+- [x] Async `OpenCodeClient` for sessions, messages, prompts, abort,
+      permissions, changed files, provider/model data, and `/event` stream
+      request construction.
+- [x] OpenCode-owned session identifiers flow through app models.
+- [x] Session list/create/open and lazy message-history loading.
+- [x] Prompt send path using OpenCode `prompt_async`.
+- [x] SSE parser plus event handling for message updates, message-part deltas,
+      reasoning/thinking parts, session status/errors, permissions, todos, tool
+      calls, and file-change refresh triggers.
+- [x] Markdown transcript rendering with selectable/copyable message text.
+- [x] Permission UI with Allow Once / Deny / Always Allow buttons wired to the
+      OpenCode permission reply endpoint.
+- [x] Changed-files UI and file actions: open, reveal in Finder, copy path.
+- [x] Changed-file loading from OpenCode status with `git status --porcelain`
+      fallback.
+- [x] Read-only model/provider loading and auth/config error banner path.
+- [x] Debug build, local unsigned `.app` bundle task, lint/test mask tasks.
+- [x] Swift test target with coverage for API decoding, SSE parsing, permission
+      decoding, and git-status parsing.
 
----
+Verification evidence:
 
-## 2. OpenCode Session UI — spec §2
-
-- [x] Sidebar lists sessions, supports selection
-- [x] "New Session" button creates an in-memory session
-- [x] Send / Stop buttons in composer
-- [~] `OpenCodeClient` is a placeholder — returns one hardcoded session, no HTTP. Required:
-  - [ ] Real HTTP client (`URLSession`) targeting the local OpenCode server's base URL
-  - [ ] `GET /session` (or equivalent) to list sessions on workspace open
-  - [ ] `POST /session` to create
-  - [ ] `GET /session/{id}/messages` to load history when opening an existing session
-  - [ ] `POST /session/{id}/message` to send prompts
-  - [ ] `POST /session/{id}/abort` (or equivalent) to stop a running session
-  - [ ] `DELETE /session/{id}` if we want delete (post-MVP-ish, but cheap)
-  - [ ] Error model + surfacing (network down, server not running, 4xx/5xx)
-- [ ] Replace placeholder messages in `AppState.createSession` / `sendPrompt` with real responses
-- [ ] Persist last-selected session per workspace
-- [ ] Resolve and verify the actual OpenCode HTTP API surface against current OpenCode docs before locking endpoint shape
+- `mask build` passes locally.
+- Raw `swift test --enable-swift-testing ...` passes 7 tests locally.
+- `mask test` exits successfully; any earlier `0 passed` summary was the harness
+  output aggregator, not Swift test discovery.
 
 ---
 
-## 3. Composer + Transcript — spec §3
+## Git issue tracker
 
-- [x] Chat-style prompt box (`TextField` axis: vertical, 2–6 lines)
-- [x] Cmd+Return shortcut to send
-- [x] Streaming indicator (`ProgressView` next to role)
-- [x] Copy-message button per bubble
-- [x] Auto-scroll to latest on message append
-- [x] Empty-state view
-- [ ] **Real SSE stream** from OpenCode → progressively append to the assistant message (today `sendPrompt` just inserts a static placeholder string)
-  - [ ] SSE parser (`URLSession` data task with line-delimited parsing, or `URLSession` async bytes)
-  - [ ] Reconnect / cancellation semantics tied to the session lifecycle
-- [ ] **Markdown rendering** — current `Text(message.content)` renders raw text. Use SwiftUI `Text(AttributedString(markdown:))` at minimum, ideally a richer renderer for code blocks + syntax highlighting
-- [ ] Code-block rendering with copy button
-- [ ] "Retry" action on the last assistant turn
-- [ ] "Edit & resend" on a user message (spec implies follow-up; nice to have)
-- [ ] Distinguish "thinking" / reasoning content from final assistant text if OpenCode emits it separately
-- [ ] Streaming cancellation actually cancels the upstream request (today `stopSelectedSession` only flips a local bool)
-- [ ] Token / cost / model-name metadata on each turn (if surfaced by OpenCode)
+Tracked issues:
 
----
+- [ ] `#a62f634` Verify OpenCode API contract and live smoke path — **high**, open/unblocked.
+- [ ] `#5a26fd5` Harden runtime and workspace lifecycle — **high**, open/unblocked.
+- [ ] `#e4811fd` Finish model/provider settings write path — **high**, blocked by `#a62f634`.
+- [ ] `#20d3fd5` Polish transcript and activity UX — medium, blocked by `#a62f634`.
+- [ ] `#535e7d9` Persist and manage permission always-allow policy — medium, open/unblocked.
+- [ ] `#1898b86` Release hardening accessibility and packaging — medium, blocked by `#a62f634` and `#5a26fd5`.
+- [ ] `#fbd6b56` Add read-only skills commands plugins and MCP inventory — low, open/unblocked.
 
-## 4. Execution Visibility — spec §4
+Use:
 
-- [~] `ActivityView` exists with sections for Permissions, Activity, Changed Files
-- [~] `ActivityItem` model has `step | tool | todo | file | runtime` kinds, but only `runtime` and `step` are ever produced (from local UI events)
-- [ ] Subscribe to OpenCode's event/SSE stream and translate events into `ActivityItem`s:
-  - [ ] Plan / todo list (kind: `.todo`) with checked / unchecked / failed states
-  - [ ] Current running step (kind: `.step`) with start/stop transitions, not just append-only log
-  - [ ] Tool-call summaries (kind: `.tool`) — name, inputs (truncated), result/exit
-  - [ ] File-change events (kind: `.file`) — path, add/modify/delete
-- [ ] Group activity by session (today it's a single global list)
-- [ ] Collapse/expand for verbose tool calls
-- [ ] Persist or at least cap activity history (currently unbounded in-memory)
-- [ ] Clear activity when switching sessions / workspaces
+```sh
+git issue ready
+git issue show <id>
+git issue start <id>
+git issue close <id>
+```
 
 ---
 
-## 5. Permission Handling — spec §5
+## Remaining tasks by spec area
 
-- [~] UI rendering of pending requests with Allow Once / Deny / Always Allow — `ActivityView`
-- [~] `resolvePermission(_:decision:)` removes the request locally and logs activity
-- [ ] **Listen for real permission requests** from OpenCode — `permissionRequests` is never populated today
-  - [ ] Identify the OpenCode permission event/endpoint (SSE event vs. polling vs. dedicated WS)
-  - [ ] Decode payload into `PermissionRequest` (action, target path/command, reason, sessionId)
-- [ ] **Send the decision back** to OpenCode — current resolver only updates local UI
-- [ ] Persist "Always Allow" rules (per workspace, per tool, per path scope)
-  - [ ] Storage layer for rules
-  - [ ] Auto-resolve incoming requests that match a stored "always allow"
-  - [ ] Settings UI to view / revoke stored rules
-- [ ] Block the requesting session UI while a permission is pending (or at least surface it prominently)
-- [ ] Map `sessionTitle` correctly — current model stores a title, but real requests will arrive with a session id
-- [ ] Timeout / auto-deny behavior if app is backgrounded (decide policy)
+### 1. Local Workspace Management — spec §1
+
+- [x] Folder picker via `NSOpenPanel`.
+- [x] Recent-workspaces list persisted with `UserDefaults`.
+- [x] Current workspace path and runtime status in sidebar.
+- [x] Start/stop local OpenCode runtime controls.
+- [~] Process supervision: stdout/stderr capture and unexpected-exit handling
+      exist; remaining work is tracked in `#5a26fd5`.
+  - [ ] Poll health after startup before declaring runtime fully ready.
+  - [ ] Graceful shutdown on app quit.
+  - [ ] Restart/recovery UX after unexpected exit.
+  - [ ] Validate recent workspace path still exists before reopening.
+  - [ ] Security-scoped bookmarks for sandboxed builds.
+  - [ ] Decide per-workspace preferences shape.
+
+### 2. OpenCode Session UI — spec §2
+
+- [x] Sidebar lists OpenCode-backed sessions and supports selection.
+- [x] Create a new OpenCode session.
+- [x] Load message history for the selected session.
+- [x] Send prompt and stop/abort selected session through the client.
+- [~] Endpoint/event contract needs live OpenCode validation: `#a62f634`.
+- [ ] Persist last-selected session per workspace.
+- [ ] Add clearer per-list loading and error states.
+
+### 3. Composer + Transcript — spec §3
+
+- [x] Chat-style composer with Cmd+Return send.
+- [x] Visible streaming/running state.
+- [x] Live streamed assistant text/reasoning via SSE events.
+- [x] Markdown rendering with selectable text.
+- [x] Copy-message button per bubble.
+- [x] Auto-scroll to latest message.
+- [ ] Code-block rendering with per-block copy button: `#20d3fd5`.
+- [ ] Retry last assistant turn: `#20d3fd5`.
+- [ ] Edit/resend user message: `#20d3fd5`.
+- [ ] Ensure upstream cancellation semantics are correct for every stream:
+      `#a62f634` / `#20d3fd5`.
+
+### 4. Execution Visibility — spec §4
+
+- [x] Activity panel exists with Permissions, Activity, and Changed Files.
+- [x] Todo, tool, runtime, step, error, and file-refresh events are mapped from
+      OpenCode events where available.
+- [ ] Validate actual OpenCode event shapes and fill any mapping gaps:
+      `#a62f634`.
+- [ ] Track current running step with updates instead of append-only rows:
+      `#20d3fd5`.
+- [ ] Group activity by session and cap/persist activity history: `#20d3fd5`.
+- [ ] Collapse/expand verbose tool calls: `#20d3fd5`.
+
+### 5. Permission Handling — spec §5
+
+- [x] Permission requests can be decoded from OpenCode events.
+- [x] Pending requests render with action, target, reason, session, and decisions.
+- [x] Decisions are sent back to OpenCode.
+- [~] Always Allow is sent to OpenCode; local persistent rule management remains
+      open in `#535e7d9`.
+- [ ] Auto-resolve stored always-allow rules if local policy is required.
+- [ ] Settings UI to view/revoke stored rules if local policy is required.
+- [ ] Define timeout/background behavior.
+
+### 6. Model / Provider Settings — spec §6
+
+- [x] Load providers/models from OpenCode read-only.
+- [x] Show provider auth/connectivity status and main-window error banner.
+- [~] Settings picker is currently read-only (`.constant(...)`); write/persist
+      behavior is tracked in `#e4811fd`.
+- [ ] Decide whether first ship edits OpenCode config or only links to external
+      OpenCode setup.
+- [ ] If in-app API key entry is added, store secrets in Keychain.
+- [ ] Add “Open opencode.json” / “Reveal config in Finder” affordances.
+
+### 7. File / Status Awareness — spec §7
+
+- [x] Changed-file model/list section.
+- [x] Open/reveal/copy file actions.
+- [x] OpenCode status loading with git-status fallback.
+- [~] File-change events currently trigger a refresh; validate exact event
+      payloads in `#a62f634`.
+- [ ] Filter “files changed by current session” vs all dirty workspace files.
+- [ ] Add stronger status badges for add/modify/delete/rename.
+- [ ] Refresh-on-focus policy if events are missed.
+
+### 8. Skills / Commands / Plugins Manager — spec §8
+
+- [ ] Detect `.agents/skills/` and list entries: `#fbd6b56`.
+- [ ] Detect commands/plugins directories read-only: `#fbd6b56`.
+- [ ] Parse and display MCP config from `opencode.json`: `#fbd6b56`.
+- [ ] Keep import/edit/install/reload out of MVP unless scope changes.
 
 ---
 
-## 6. Model / Provider Settings — spec §6
+## Cross-cutting / release hardening
 
-- [~] `SettingsView` renders providers, but `appState.providers` is a single hardcoded placeholder and the picker uses `.constant(...)` — selection does nothing
-- [ ] Read configured providers/models from OpenCode (config endpoint or `opencode.json`)
-- [ ] Make the model picker actually mutate state and persist
-- [ ] Surface OpenCode auth errors (missing API key, expired token) inline in Settings *and* via a banner in the main window
-- [ ] "Open opencode.json" / "Reveal config in Finder" affordance
-- [ ] Keychain storage for API keys if the user enters one in-app (spec mentions keychain integration)
-- [ ] Default-model selection persisted per workspace (or global, decide)
-
----
-
-## 7. File / Status Awareness — spec §7
-
-- [x] `ChangedFile` model + list section in `ActivityView`
-- [x] Per-file actions: Open in external editor, Reveal in Finder, Copy Path
-- [~] `OpenCodeClient.loadChangedFiles` always returns `[]`
-- [ ] Wire to OpenCode's file-status / git-status endpoint (or shell out to `git status` against the workspace as a fallback)
-- [ ] Subscribe to file-change events from the active session (spec: "files changed by current session where available")
-- [ ] Status badges (added / modified / deleted / renamed) instead of free-text `status` string
-- [ ] Refresh-on-focus or push-driven updates
-- [ ] Filter to "files changed by this session" vs. "all dirty files in workspace"
-
----
-
-## 8. Skills / Commands / Plugins Manager — spec §8
-
-- [ ] Detect `.agents/skills/` in the workspace and list entries
-- [ ] Detect commands directory and list
-- [ ] Detect plugins directory and list
-- [ ] Parse and display MCP config from `opencode.json`
-- [ ] Read-only browser UI section (sidebar tab or settings pane — not yet decided)
-
-Spec marks edit / import / install / hot-reload as **post-MVP** — leave out.
-
----
-
-## Cross-cutting / quality
-
-- [ ] Concurrency review — `AppState` is `@MainActor`, but services (`OpenCodeClient`, `OpenCodeProcessManager`) will need actor isolation once they do real I/O
-- [ ] Replace synchronous stub APIs with `async`/`await` end-to-end
-- [ ] Cancellation-correctness: every long-running stream should be `Task`-scoped to the session
-- [ ] Error-presentation pattern (single `AlertCenter` or per-section banners) — currently errors only land in `runtimeDetail`
-- [ ] Accessibility pass (VoiceOver labels on icon-only buttons, sufficient contrast)
-- [ ] Dark-mode visual review
-- [ ] Keyboard shortcuts beyond Cmd+Return (new session, switch session, focus composer, stop)
-- [ ] Empty / loading / error states for every list (`sessions`, `activity`, `changedFiles`, `providers`)
-
----
-
-## "First Shippable Version" checklist — spec §First Shippable Version
-
-Direct mapping for release-readiness:
-
-1. [x] Open local folder
-2. [~] Start/manage OpenCode — starts a process; no health check, no log capture, no crash handling
-3. [~] Create / list / open sessions — UI exists; backend returns stubs
-4. [ ] Send prompt and stream response — **not wired** (placeholder string only)
-5. [~] Show activity / todos / tool progress — UI exists; only local runtime events flow through it
-6. [~] Handle permission prompts — UI exists; no listener, no responder
-7. [~] Show changed files — UI exists; data source returns `[]`
-8. [~] Configure model / API key enough to get running — read-only placeholder; picker is non-functional
-
-**Critical path to shippable:** items 4, 5, 6, 7, 8 above — i.e. replace
-`OpenCodeClient` and the permission/event plumbing with real OpenCode API
-calls, plus make the Settings model picker actually persist a selection.
+- [ ] Live smoke test against an installed OpenCode server: `#a62f634`.
+- [x] Confirm Swift Testing discovery: raw run passes 7 tests.
+- [ ] Run lint when `swiftformat` and `swiftlint` are installed: `#1898b86`.
+- [ ] Accessibility pass for icon-only controls and VoiceOver labels:
+      `#1898b86`.
+- [ ] Dark-mode visual review: `#1898b86`.
+- [ ] Keyboard shortcuts for new session, switch session, focus composer, stop:
+      `#20d3fd5`.
+- [ ] Document signing/notarization/hardened-runtime posture beyond the local
+      unsigned `.app`: `#1898b86`.

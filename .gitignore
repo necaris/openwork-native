@@ -2,4 +2,6 @@
 .swiftpm/
 DerivedData/
 Package.resolved
+.DS_Store
+.git-issue/statuses.bash
 

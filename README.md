@@ -5,19 +5,21 @@ A native macOS desktop client for [OpenCode](https://opencode.ai), inspired by
 directly to a locally-supervised OpenCode server against a folder you choose —
 no cloud control plane, no hosted workers.
 
-> **Status:** MVP / pre-alpha. See [SPEC.md](SPEC.md) for scope and
-> non-goals. Expect breakage.
+> **Status:** MVP / pre-alpha. Core OpenCode integration is implemented in
+> code, but live API smoke testing and release hardening remain. See
+> [SPEC.md](SPEC.md) and [TODO.md](TODO.md) for progress and open issues.
 
 ## What it does
 
 - Pick a local project folder and remember recent workspaces.
 - Start, supervise, and stop a local OpenCode server bound to that workspace.
 - Create, list, and open OpenCode sessions; send prompts and stream responses.
-- Render markdown transcripts with copy / retry.
+- Render markdown transcripts with copy support; retry is tracked as follow-up.
 - Surface plan steps, tool calls, and file-change activity as the agent works.
 - Prompt for permission when OpenCode requests a tool/path (allow once, deny,
   always allow).
-- Configure the default model/provider and surface OpenCode auth errors.
+- Read model/provider configuration and surface OpenCode auth errors; write-side
+  configuration is still tracked as follow-up.
 - Reveal changed files in Finder or open them in your editor.
 
 ## Explicitly out of scope (MVP)
@@ -26,6 +28,12 @@ Cloud control plane, hosted workers, org/team provisioning, billing, remote
 worker connection, UI-control MCP bridge, Slack/Telegram connectors, hosted
 skill hubs, browser/mobile parity, multi-user workflow distribution. See
 [SPEC.md](SPEC.md) for the full list.
+
+## Current tracking
+
+Task tracking uses `git issue` in this repo (`.ba/` is not initialized). Run
+`git issue ready` for the current queue; `TODO.md` mirrors the high-level
+checklist.
 
 ## Requirements
 
