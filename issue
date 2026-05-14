@@ -9,3 +9,6 @@ assignee: Rami Chowdhury
 hash_source: content
 
 Follow-ups after core streaming: code-block rendering/copy, retry/edit-resend, richer running step transitions, activity grouping by session, history caps, loading/error/empty states, and additional shortcuts.
+
+## Comments
+[2026-05-14T17:35:45Z] Rami Chowdhury: Progress/docs sync 2026-05-14: transcript streams text/reasoning and renders markdown; activity maps todos/tools/session events. Remaining: code-block copy, retry/edit-resend, richer running-step transitions, session grouping/history caps, more shortcuts/loading states.
