@@ -59,26 +59,31 @@ final class OpenCodeProcessManager: @unchecked Sendable {
             self.stderrPipe = stderrPipe
 
             stdoutPipe.fileHandleForReading.readabilityHandler = { [weak self] handle in
-                self?.queue.async {
-                    self?.appendOutput(handle.availableData)
+                let data = handle.availableData
+                guard let manager = self else { return }
+                manager.queue.async {
+                    manager.appendOutput(data)
                 }
             }
             stderrPipe.fileHandleForReading.readabilityHandler = { [weak self] handle in
-                self?.queue.async {
-                    self?.appendOutput(handle.availableData)
+                let data = handle.availableData
+                guard let manager = self else { return }
+                manager.queue.async {
+                    manager.appendOutput(data)
                 }
             }
 
             process.terminationHandler = { [weak self] process in
-                self?.queue.async {
-                    guard let self else { return }
-                    self.stdoutPipe?.fileHandleForReading.readabilityHandler = nil
-                    self.stderrPipe?.fileHandleForReading.readabilityHandler = nil
-                    let output = self.outputBuffer.trimmingCharacters(in: .whitespacesAndNewlines)
-                    let shouldReport = !self.intentionallyStopping && process.terminationStatus != 0
-                    self.process = nil
+                let terminationStatus = process.terminationStatus
+                guard let manager = self else { return }
+                manager.queue.async {
+                    manager.stdoutPipe?.fileHandleForReading.readabilityHandler = nil
+                    manager.stderrPipe?.fileHandleForReading.readabilityHandler = nil
+                    let output = manager.outputBuffer.trimmingCharacters(in: .whitespacesAndNewlines)
+                    let shouldReport = !manager.intentionallyStopping && terminationStatus != 0
+                    manager.process = nil
                     if shouldReport {
-                        onUnexpectedExit(output.isEmpty ? "OpenCode exited with status \(process.terminationStatus)." : output)
+                        onUnexpectedExit(output.isEmpty ? "OpenCode exited with status \(terminationStatus)." : output)
                     }
                 }
             }

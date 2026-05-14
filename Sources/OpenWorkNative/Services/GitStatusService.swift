@@ -1,7 +1,13 @@
 import Foundation
 
-struct GitStatusService {
-    func changedFiles(in workspace: Workspace) -> [ChangedFile] {
+struct GitStatusService: Sendable {
+    func changedFiles(in workspace: Workspace) async -> [ChangedFile] {
+        await Task.detached(priority: .utility) {
+            Self.changedFilesSynchronously(in: workspace)
+        }.value
+    }
+
+    private static func changedFilesSynchronously(in workspace: Workspace) -> [ChangedFile] {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
         process.arguments = ["git", "-C", workspace.path, "status", "--porcelain"]

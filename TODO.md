@@ -7,18 +7,11 @@ Legend: `[x]` shipped · `[~]` partial / stubbed · `[ ]` not started.
 
 ---
 
-## 0. Project plumbing
-
-- [x] SwiftPM package, macOS 13+, single executable target
-- [x] SwiftUI app entry point + `NavigationSplitView` shell
-- [x] `AppState` as top-level `ObservableObject`
-- [x] `.gitignore`, `README.md`, `SPEC.md`
-- [ ] App bundle target (Info.plist, entitlements, code signing) — current build is a SwiftPM CLI binary, not a `.app`
-- [ ] Sandbox / hardened-runtime decision (entitlements for file access, network client, child processes)
-- [ ] `swift test` target + first unit tests (none exist today)
-- [ ] CI (build + test) on macOS runner
-- [ ] Logging facility (`os.Logger`) — currently no logs anywhere
-- [ ] Crash / error reporting strategy (even if just `os_log` + user-facing alert)
+- [x] Implement first-shippable OpenCode integration
+- [x] Map OpenCode HTTP API types (Sessions, Messages, Parts)
+- [x] Parse OpenCode event stream (SSE) for transcripts, tool usage, and permission states
+- [x] Launch OpenCode on ephemeral port, supervise process and errors
+- [x] Expose `mask app` task to package `.app` bundle
 
 ---
 

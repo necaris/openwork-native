@@ -44,28 +44,28 @@
 
 ## Changes
 
-- Verify OpenCode APIs and document the confirmed routes/events for sessions, messages, streaming, abort, permissions, config, models/providers, file status, and event/SSE activity.
-- Replace `OpenCodeClient` stubs with an async HTTP/SSE client backed by `URLSession`.
-- Add API DTOs and mapping code from OpenCode payloads into existing app models.
-- Change `OpenCodeSession.id` from local-only `UUID` semantics to OpenCode-owned session identifiers.
-- Add loading and error states for session list, selected-session history, transcript stream, settings, permissions, and changed files.
-- Update `AppState.openWorkspace`, `createSession`, `sendPrompt`, and `stopSelectedSession` to call real async client methods.
-- Track per-session streaming tasks so abort and workspace/session switches cancel cleanly.
-- Add an SSE parser that can append assistant deltas, finish streamed messages, surface errors, separate thinking content when available, and translate todo events into activity rows.
-- Add message-history loading on session selection after initial metadata display.
-- Add markdown rendering for transcript content, at minimum with SwiftUI `AttributedString(markdown:)` or an equivalent lightweight renderer.
-- Add permission event decoding and a response path for allow-once, deny, and API-supported always-allow decisions.
-- Keep local persistent always-allow rule management out of the first ship unless the verified OpenCode API makes it trivial.
-- Extend `OpenCodeProcessManager` to choose an available ephemeral port, launch OpenCode with that port, capture stdout/stderr, and notify `AppState` on unexpected termination.
-- Add runtime error presentation for missing OpenCode, failed launches, unexpected exits, and captured stderr details.
-- Add a main-window banner/error surface for OpenCode auth/config failures, with detailed read-only information in `SettingsView`.
-- Add a changed-file service that prefers OpenCode status data and falls back to parsing `git status --porcelain` in the workspace.
-- Add read-only provider/model config loading from OpenCode or its config source, without editing or keychain entry in this pass.
-- Preserve and wire existing workspace behavior: folder picker, recent workspaces, current workspace path, and runtime controls.
-- Preserve and wire existing file actions: open externally, reveal in Finder, and copy path.
-- Optionally add read-only detection for `.agents/skills`, commands, plugins, and MCP config only after the first-ship path is stable.
-- Add a test target in `Package.swift`.
-- Add unit tests for API decoding, SSE parsing, permission decoding, and git-status parsing.
-- Add service-level tests using mocked networking and process-running abstractions.
-- Add minimal `.app` bundle support with Info.plist/app metadata and a documented entitlements/hardened-runtime decision.
-- Keep UI changes incremental by reusing `TranscriptView`, `ActivityView`, `SidebarView`, and `SettingsView` rather than redesigning the shell.
+- [x] Verify OpenCode APIs and document the confirmed routes/events for sessions, messages, streaming, abort, permissions, config, models/providers, file status, and event/SSE activity.
+- [x] Replace `OpenCodeClient` stubs with an async HTTP/SSE client backed by `URLSession`.
+- [x] Add API DTOs and mapping code from OpenCode payloads into existing app models.
+- [x] Change `OpenCodeSession.id` from local-only `UUID` semantics to OpenCode-owned session identifiers.
+- [x] Add loading and error states for session list, selected-session history, transcript stream, settings, permissions, and changed files.
+- [x] Update `AppState.openWorkspace`, `createSession`, `sendPrompt`, and `stopSelectedSession` to call real async client methods.
+- [x] Track per-session streaming tasks so abort and workspace/session switches cancel cleanly.
+- [x] Add an SSE parser that can append assistant deltas, finish streamed messages, surface errors, separate thinking content when available, and translate todo events into activity rows.
+- [x] Add message-history loading on session selection after initial metadata display.
+- [x] Add markdown rendering for transcript content, at minimum with SwiftUI `AttributedString(markdown:)` or an equivalent lightweight renderer.
+- [x] Add permission event decoding and a response path for allow-once, deny, and API-supported always-allow decisions.
+- [x] Keep local persistent always-allow rule management out of the first ship unless the verified OpenCode API makes it trivial.
+- [x] Extend `OpenCodeProcessManager` to choose an available ephemeral port, launch OpenCode with that port, capture stdout/stderr, and notify `AppState` on unexpected termination.
+- [x] Add runtime error presentation for missing OpenCode, failed launches, unexpected exits, and captured stderr details.
+- [x] Add a main-window banner/error surface for OpenCode auth/config failures, with detailed read-only information in `SettingsView`.
+- [x] Add a changed-file service that prefers OpenCode status data and falls back to parsing `git status --porcelain` in the workspace.
+- [x] Add read-only provider/model config loading from OpenCode or its config source, without editing or keychain entry in this pass.
+- [x] Preserve and wire existing workspace behavior: folder picker, recent workspaces, current workspace path, and runtime controls.
+- [x] Preserve and wire existing file actions: open externally, reveal in Finder, and copy path.
+- [x] Optionally add read-only detection for `.agents/skills`, commands, plugins, and MCP config only after the first-ship stable.
+- [x] Add a test target in `Package.swift`.
+- [x] Add unit tests for API decoding, SSE parsing, permission decoding, and git-status parsing.
+- [x] Add service-level tests using mocked networking and process-running abstractions.
+- [x] Add minimal `.app` bundle support with Info.plist/app metadata and a documented entitlements/hardened-runtime decision.
+- [x] Keep UI changes incremental by reusing `TranscriptView`, `ActivityView`, `SidebarView`, and `SettingsView` rather than redesigning the shell.

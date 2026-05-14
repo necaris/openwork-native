@@ -30,7 +30,7 @@ skill hubs, browser/mobile parity, multi-user workflow distribution. See
 ## Requirements
 
 - macOS 13 (Ventura) or later
-- Swift 5.9 / Xcode 15+
+- Swift 6.0 / Xcode 16+
 - An [OpenCode](https://opencode.ai) binary on `PATH` (the app shells out to it
   for the local server)
 - A configured model provider (API key) for OpenCode
@@ -38,8 +38,14 @@ skill hubs, browser/mobile parity, multi-user workflow distribution. See
 ## Build & run
 
 ```sh
-swift build
+mask build
 swift run OpenWorkNative
+```
+
+Build a local unsigned `.app` bundle:
+
+```sh
+mask app
 ```
 
 Open in Xcode:

@@ -1,6 +1,6 @@
 import Foundation
 
-struct Workspace: Identifiable, Codable, Equatable {
+struct Workspace: Identifiable, Codable, Equatable, Sendable {
     var id: String { path }
     let path: String
     var displayName: String {
@@ -8,14 +8,14 @@ struct Workspace: Identifiable, Codable, Equatable {
     }
 }
 
-enum RuntimeStatus: String, Equatable {
+enum RuntimeStatus: String, Equatable, Sendable {
     case stopped = "Stopped"
     case starting = "Starting"
     case running = "Running"
     case failed = "Failed"
 }
 
-struct OpenCodeSession: Identifiable, Equatable {
+struct OpenCodeSession: Identifiable, Equatable, Sendable {
     let id: String
     var title: String
     var createdAt: Date
@@ -23,8 +23,8 @@ struct OpenCodeSession: Identifiable, Equatable {
     var messages: [TranscriptMessage]
 }
 
-struct TranscriptMessage: Identifiable, Equatable {
-    enum Role: String {
+struct TranscriptMessage: Identifiable, Equatable, Sendable {
+    enum Role: String, Sendable {
         case user = "User"
         case assistant = "Assistant"
         case system = "System"
@@ -38,8 +38,8 @@ struct TranscriptMessage: Identifiable, Equatable {
     var thinking: String?
 }
 
-struct ActivityItem: Identifiable, Equatable {
-    enum Kind: String {
+struct ActivityItem: Identifiable, Equatable, Sendable {
+    enum Kind: String, Sendable {
         case step = "Step"
         case tool = "Tool"
         case todo = "Todo"
@@ -54,7 +54,7 @@ struct ActivityItem: Identifiable, Equatable {
     var state: String
 }
 
-struct PermissionRequest: Identifiable, Equatable {
+struct PermissionRequest: Identifiable, Equatable, Sendable {
     let id: String
     var sessionID: String
     var sessionTitle: String
@@ -63,13 +63,13 @@ struct PermissionRequest: Identifiable, Equatable {
     var reason: String
 }
 
-struct ChangedFile: Identifiable, Equatable {
+struct ChangedFile: Identifiable, Equatable, Sendable {
     var id: String { path }
     var path: String
     var status: String
 }
 
-struct ModelProvider: Identifiable, Equatable {
+struct ModelProvider: Identifiable, Equatable, Sendable {
     var id: String { name }
     var name: String
     var models: [String]
@@ -77,7 +77,7 @@ struct ModelProvider: Identifiable, Equatable {
     var authStatus: String
 }
 
-enum PermissionDecision: String {
+enum PermissionDecision: String, Sendable {
     case once
     case always
     case reject
@@ -91,7 +91,7 @@ enum PermissionDecision: String {
     }
 }
 
-enum JSONValue: Decodable, Equatable {
+enum JSONValue: Decodable, Equatable, Sendable {
     case string(String)
     case number(Double)
     case bool(Bool)

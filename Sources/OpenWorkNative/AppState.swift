@@ -74,7 +74,7 @@ final class AppState: ObservableObject {
 
         sessions = []
         selectedSessionID = nil
-        changedFiles = gitStatusService.changedFiles(in: workspace)
+        changedFiles = []
         activity = [
             ActivityItem(
                 id: UUID(),
@@ -84,6 +84,7 @@ final class AppState: ObservableObject {
                 state: "Ready"
             )
         ]
+        Task { await loadChangedFiles() }
     }
 
     func startRuntime() {
@@ -250,10 +251,10 @@ final class AppState: ObservableObject {
             if let files = try await client?.loadChangedFiles() {
                 changedFiles = files
             } else {
-                changedFiles = gitStatusService.changedFiles(in: currentWorkspace)
+                changedFiles = await gitStatusService.changedFiles(in: currentWorkspace)
             }
         } catch {
-            changedFiles = gitStatusService.changedFiles(in: currentWorkspace)
+            changedFiles = await gitStatusService.changedFiles(in: currentWorkspace)
         }
     }
 
