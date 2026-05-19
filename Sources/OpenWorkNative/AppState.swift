@@ -103,12 +103,11 @@ final class AppState: ObservableObject {
                     self?.handleUnexpectedRuntimeExit(output)
                 }
             }
-            client = OpenCodeClient(baseURL: runtime.baseURL, directory: currentWorkspace.path)
-            runtimeStatus = .running
-            runtimeDetail = "OpenCode running at \(runtime.baseURL.absoluteString) for \(currentWorkspace.displayName)"
-            appendActivity(kind: .runtime, title: "OpenCode started", detail: currentWorkspace.path, state: "Running")
-            refreshOpenCodeData()
-            startEventStream()
+            let newClient = OpenCodeClient(baseURL: runtime.baseURL, directory: currentWorkspace.path)
+            client = newClient
+            runtimeDetail = "OpenCode starting at \(runtime.baseURL.absoluteString) for \(currentWorkspace.displayName)"
+            appendActivity(kind: .runtime, title: "OpenCode started", detail: currentWorkspace.path, state: "Starting")
+            Task { await waitForHealthAndRefresh(client: newClient, baseURL: runtime.baseURL, workspaceName: currentWorkspace.displayName) }
         } catch {
             runtimeStatus = .failed
             runtimeDetail = error.localizedDescription
@@ -210,6 +209,33 @@ final class AppState: ObservableObject {
         guard let workspacePath = currentWorkspace?.path else { return }
         let url = URL(fileURLWithPath: workspacePath).appendingPathComponent(file.path)
         NSWorkspace.shared.open(url)
+    }
+
+    private func waitForHealthAndRefresh(client: OpenCodeClient, baseURL: URL, workspaceName: String) async {
+        let deadline = Date().addingTimeInterval(10)
+        var lastError: Error?
+        while Date() < deadline {
+            if Task.isCancelled { return }
+            do {
+                try await client.health()
+                guard !Task.isCancelled, self.client?.baseURL == baseURL else { return }
+                runtimeStatus = .running
+                runtimeDetail = "OpenCode running at \(baseURL.absoluteString) for \(workspaceName)"
+                appendActivity(kind: .runtime, title: "OpenCode ready", detail: baseURL.absoluteString, state: "Running")
+                refreshOpenCodeData()
+                startEventStream()
+                return
+            } catch {
+                lastError = error
+                try? await Task.sleep(nanoseconds: 200_000_000)
+            }
+        }
+        guard self.client?.baseURL == baseURL else { return }
+        let detail = lastError?.localizedDescription ?? "Health check timed out."
+        runtimeStatus = .failed
+        runtimeDetail = detail
+        errorBanner = "OpenCode did not become ready: \(detail)"
+        appendActivity(kind: .runtime, title: "OpenCode failed to become ready", detail: detail, state: "Failed")
     }
 
     private func refreshOpenCodeData() {
