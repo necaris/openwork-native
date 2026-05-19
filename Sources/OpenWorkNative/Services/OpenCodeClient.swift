@@ -183,19 +183,26 @@ extension OpenCodeEvent {
     }
 
     var permissionRequest: PermissionRequest? {
-        guard type == "permission.updated" else { return nil }
+        guard type == "permission.asked" else { return nil }
         let id = properties["id"]?.stringValue ?? UUID().uuidString
         let sessionID = properties["sessionID"]?.stringValue ?? ""
-        let title = properties["title"]?.stringValue ?? properties["type"]?.stringValue ?? "Permission requested"
-        let pattern = properties["pattern"]?.displayValue
+        let action = properties["permission"]?.stringValue
+            ?? properties["title"]?.stringValue
+            ?? "Permission requested"
+        let target: String
+        if let patterns = properties["patterns"]?.arrayValue {
+            target = patterns.compactMap(\.stringValue).joined(separator: ", ")
+        } else {
+            target = properties["pattern"]?.displayValue ?? ""
+        }
         let metadata = properties["metadata"]?.displayValue
         return PermissionRequest(
             id: id,
             sessionID: sessionID,
             sessionTitle: sessionID,
-            action: title,
-            target: pattern ?? "",
-            reason: metadata ?? "OpenCode requested permission for this action."
+            action: action,
+            target: target,
+            reason: (metadata?.isEmpty == false) ? metadata! : "OpenCode requested permission for this action."
         )
     }
 

@@ -317,6 +317,8 @@ final class AppState: ObservableObject {
             applyMessageUpdated(event)
         case "message.part.updated":
             applyMessagePartUpdated(event)
+        case "message.part.delta":
+            applyMessagePartDelta(event)
         case "session.status", "session.idle":
             if let sessionID = event.sessionID {
                 markSession(sessionID, running: event.sessionStatus == "busy" && event.type != "session.idle")
@@ -324,9 +326,13 @@ final class AppState: ObservableObject {
         case "session.error":
             appendActivity(kind: .step, title: "Session error", detail: event.properties["error"]?.displayValue ?? "Unknown error", state: "Failed")
             if let sessionID = event.sessionID { markSession(sessionID, running: false) }
-        case "permission.updated":
+        case "permission.asked":
             if let request = event.permissionRequest {
                 upsertPermission(request)
+            }
+        case "permission.replied":
+            if let requestID = event.properties["requestID"]?.stringValue {
+                removePermission(id: requestID)
             }
         case "todo.updated":
             if let todos = event.todos {
@@ -346,6 +352,23 @@ final class AppState: ObservableObject {
               let role = info["role"]?.stringValue else { return }
         let appRole: TranscriptMessage.Role = role == "assistant" ? .assistant : .user
         upsertMessage(sessionID: sessionID, messageID: messageID, role: appRole, content: nil, thinking: nil, streaming: role == "assistant")
+    }
+
+    private func applyMessagePartDelta(_ event: OpenCodeEvent) {
+        guard let sessionID = event.properties["sessionID"]?.stringValue,
+              let messageID = event.properties["messageID"]?.stringValue,
+              let partID = event.properties["partID"]?.stringValue,
+              let delta = event.properties["delta"]?.stringValue else { return }
+        let field = event.properties["field"]?.stringValue ?? "text"
+        let current = messagePartText[partID] ?? ""
+        let newText = current + delta
+        messagePartText[partID] = newText
+
+        if field == "reasoning" {
+            upsertMessage(sessionID: sessionID, messageID: messageID, role: .assistant, content: nil, thinking: newText, streaming: true)
+        } else {
+            upsertMessage(sessionID: sessionID, messageID: messageID, role: .assistant, content: newText, thinking: nil, streaming: true)
+        }
     }
 
     private func applyMessagePartUpdated(_ event: OpenCodeEvent) {
@@ -392,6 +415,10 @@ final class AppState: ObservableObject {
                 TranscriptMessage(id: messageID, role: role, content: content ?? "", date: Date(), isStreaming: streaming, thinking: thinking)
             )
         }
+    }
+
+    private func removePermission(id: String) {
+        permissionRequests.removeAll { $0.id == id }
     }
 
     private func upsertPermission(_ request: PermissionRequest) {

@@ -50,7 +50,7 @@ Verification evidence:
 
 Tracked issues:
 
-- [ ] `#a62f634` Verify OpenCode API contract and live smoke path — **high**, open/unblocked.
+- [x] `#a62f634` Verify OpenCode API contract and live smoke path — **high**. Done; see `blueprint/opencode-first-ship/opencode-api-smoke.md`.
 - [ ] `#5a26fd5` Harden runtime and workspace lifecycle — **high**, open/unblocked.
 - [ ] `#e4811fd` Finish model/provider settings write path — **high**, blocked by `#a62f634`.
 - [ ] `#20d3fd5` Polish transcript and activity UX — medium, blocked by `#a62f634`.

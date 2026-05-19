@@ -66,7 +66,7 @@ discovery failure.
 
 ## Changes
 
-- [~] Verify OpenCode APIs and document the confirmed routes/events for sessions, messages, streaming, abort, permissions, config, models/providers, file status, and event/SSE activity. _Implemented against assumed/current routes; live validation remains in `#a62f634`._
+- [x] Verify OpenCode APIs and document the confirmed routes/events for sessions, messages, streaming, abort, permissions, config, models/providers, file status, and event/SSE activity. _Live-validated against `opencode` 1.15.3; see `opencode-api-smoke.md`. Permission event was `permission.asked` (not `permission.updated`) with payload `{permission, patterns, metadata}`; client fixed. `message.part.delta` handler added._
 - [x] Replace `OpenCodeClient` stubs with an async HTTP/SSE client backed by `URLSession`.
 - [x] Add API DTOs and mapping code from OpenCode payloads into existing app models.
 - [x] Change `OpenCodeSession.id` from local-only `UUID` semantics to OpenCode-owned session identifiers.

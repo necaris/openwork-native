@@ -2,17 +2,17 @@ import Foundation
 import Testing
 @testable import OpenWorkNative
 
-@Test func decodesPermissionUpdatedEvent() throws {
+@Test func decodesPermissionAskedEvent() throws {
     let data = #"""
     {
-      "type": "permission.updated",
+      "type": "permission.asked",
       "properties": {
-        "id": "perm-1",
-        "sessionID": "session-1",
-        "type": "bash",
-        "title": "Run shell command",
-        "pattern": "swift test",
-        "metadata": { "reason": "verify changes" }
+        "id": "per_1",
+        "sessionID": "ses_1",
+        "permission": "bash",
+        "patterns": ["swift test", "swift build"],
+        "metadata": { "reason": "verify changes" },
+        "always": []
       }
     }
     """#.data(using: .utf8)!
@@ -20,11 +20,19 @@ import Testing
     let event = try JSONDecoder().decode(OpenCodeEvent.self, from: data)
     let request = event.permissionRequest
 
-    #expect(request?.id == "perm-1")
-    #expect(request?.sessionID == "session-1")
-    #expect(request?.action == "Run shell command")
-    #expect(request?.target == "swift test")
+    #expect(request?.id == "per_1")
+    #expect(request?.sessionID == "ses_1")
+    #expect(request?.action == "bash")
+    #expect(request?.target == "swift test, swift build")
     #expect(request?.reason == "reason: verify changes")
+}
+
+@Test func permissionUpdatedEventIsNotDecoded() throws {
+    let data = #"""
+    {"type":"permission.updated","properties":{"id":"perm-1"}}
+    """#.data(using: .utf8)!
+    let event = try JSONDecoder().decode(OpenCodeEvent.self, from: data)
+    #expect(event.permissionRequest == nil)
 }
 
 @Test func decodesTodoUpdatedEvent() throws {
