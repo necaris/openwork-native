@@ -35,21 +35,30 @@ final class OpenCodeProcessManager: @unchecked Sendable {
                 return OpenCodeRuntime(baseURL: URL(string: "http://127.0.0.1:\(port)")!, port: port)
             }
 
-            guard Self.hasOpenCodeOnPath() else {
+            guard let executableURL = Self.locateOpenCode() else {
+                AppLog.process.error("locateOpenCode failed — opencode not found on PATH")
                 throw OpenCodeProcessError.missingExecutable
             }
 
             guard let port = PortAllocator.availablePort() else {
+                AppLog.process.error("PortAllocator returned nil")
                 throw OpenCodeProcessError.portUnavailable
             }
+            AppLog.process.log("Starting OpenCode: executable=\(executableURL.path, privacy: .public) port=\(port, privacy: .public) workspace=\(workspace.path, privacy: .public)")
 
             outputBuffer = ""
             intentionallyStopping = false
 
             let process = Process()
             process.currentDirectoryURL = URL(fileURLWithPath: workspace.path)
-            process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
-            process.arguments = ["opencode", "serve", "--hostname", "127.0.0.1", "--port", String(port)]
+            process.executableURL = executableURL
+            process.arguments = ["serve", "--hostname", "127.0.0.1", "--port", String(port)]
+
+            if let shellPath = Self.userShellPath() {
+                var environment = ProcessInfo.processInfo.environment
+                environment["PATH"] = shellPath
+                process.environment = environment
+            }
 
             let stdoutPipe = Pipe()
             let stderrPipe = Pipe()
@@ -82,7 +91,9 @@ final class OpenCodeProcessManager: @unchecked Sendable {
                     let output = manager.outputBuffer.trimmingCharacters(in: .whitespacesAndNewlines)
                     let shouldReport = !manager.intentionallyStopping && terminationStatus != 0
                     manager.process = nil
+                    AppLog.process.log("OpenCode exited: status=\(terminationStatus, privacy: .public) intentional=\(manager.intentionallyStopping, privacy: .public) outputLen=\(output.count, privacy: .public)")
                     if shouldReport {
+                        AppLog.process.error("OpenCode exited unexpectedly: \(output, privacy: .public)")
                         onUnexpectedExit(output.isEmpty ? "OpenCode exited with status \(terminationStatus)." : output)
                     }
                 }
@@ -90,6 +101,7 @@ final class OpenCodeProcessManager: @unchecked Sendable {
 
             try process.run()
             self.process = process
+            AppLog.process.log("OpenCode process running pid=\(process.processIdentifier, privacy: .public) port=\(port, privacy: .public)")
             return OpenCodeRuntime(baseURL: URL(string: "http://127.0.0.1:\(port)")!, port: port)
         }
     }
@@ -98,6 +110,7 @@ final class OpenCodeProcessManager: @unchecked Sendable {
         queue.sync {
             guard let process else { return }
             intentionallyStopping = true
+            AppLog.process.log("Stopping OpenCode pid=\(process.processIdentifier, privacy: .public) running=\(process.isRunning, privacy: .public)")
             if process.isRunning {
                 process.terminate()
             }
@@ -113,18 +126,65 @@ final class OpenCodeProcessManager: @unchecked Sendable {
 
     private func appendOutput(_ data: Data) {
         guard !data.isEmpty, let text = String(data: data, encoding: .utf8) else { return }
+        AppLog.process.debug("opencode stdio: \(text, privacy: .public)")
         outputBuffer.append(text)
         if outputBuffer.count > 20_000 {
             outputBuffer.removeFirst(outputBuffer.count - 20_000)
         }
     }
 
-    private static func hasOpenCodeOnPath() -> Bool {
-        let path = ProcessInfo.processInfo.environment["PATH"] ?? "/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin"
-        return path.split(separator: ":").contains { directory in
-            let candidate = URL(fileURLWithPath: String(directory)).appendingPathComponent("opencode").path
-            return FileManager.default.isExecutableFile(atPath: candidate)
+    static func userShellPath() -> String? {
+        let shell = ProcessInfo.processInfo.environment["SHELL"] ?? "/bin/zsh"
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: shell)
+        process.arguments = ["-ilc", "printf %s \"$PATH\""]
+        let stdout = Pipe()
+        process.standardOutput = stdout
+        process.standardError = Pipe()
+        do {
+            try process.run()
+        } catch {
+            return nil
         }
+        process.waitUntilExit()
+        guard process.terminationStatus == 0 else { return nil }
+        let data = stdout.fileHandleForReading.readDataToEndOfFile()
+        let path = String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines)
+        return (path?.isEmpty == false) ? path : nil
+    }
+
+    static func locateOpenCode() -> URL? {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
+        process.arguments = ["which", "opencode"]
+
+        let stdout = Pipe()
+        process.standardOutput = stdout
+        process.standardError = Pipe()
+
+        var environment = ProcessInfo.processInfo.environment
+        if let shellPath = userShellPath() {
+            environment["PATH"] = shellPath
+        }
+        process.environment = environment
+
+        do {
+            try process.run()
+        } catch {
+            return nil
+        }
+        process.waitUntilExit()
+        guard process.terminationStatus == 0 else { return nil }
+
+        let data = stdout.fileHandleForReading.readDataToEndOfFile()
+        guard let raw = String(data: data, encoding: .utf8) else { return nil }
+        let path = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !path.isEmpty, FileManager.default.isExecutableFile(atPath: path) else {
+            AppLog.process.error("locateOpenCode: 'which opencode' returned empty or non-executable path: \(path, privacy: .public)")
+            return nil
+        }
+        AppLog.process.log("locateOpenCode: \(path, privacy: .public)")
+        return URL(fileURLWithPath: path)
     }
 }
 

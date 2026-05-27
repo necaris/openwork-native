@@ -42,6 +42,20 @@ final class AppState: ObservableObject {
 
     init() {
         recentWorkspaces = workspaceStore.loadRecentWorkspaces()
+        AppLog.app.log("AppState init — recentWorkspaces=\(self.recentWorkspaces.count, privacy: .public)")
+        checkOpenCodeAvailability()
+    }
+
+    private func checkOpenCodeAvailability() {
+        if let url = OpenCodeProcessManager.locateOpenCode() {
+            appendActivity(kind: .runtime, title: "OpenCode found", detail: url.path, state: "Ready")
+        } else {
+            let message = OpenCodeProcessError.missingExecutable.localizedDescription
+            errorBanner = message
+            runtimeStatus = .failed
+            runtimeDetail = message
+            appendActivity(kind: .runtime, title: "OpenCode not found", detail: message, state: "Failed")
+        }
     }
 
     deinit {
@@ -62,6 +76,7 @@ final class AppState: ObservableObject {
     }
 
     func openWorkspace(at url: URL) {
+        AppLog.state.log("openWorkspace path=\(url.path, privacy: .public)")
         stopRuntime()
         let workspace = Workspace(path: url.path)
         currentWorkspace = workspace
@@ -89,11 +104,13 @@ final class AppState: ObservableObject {
 
     func startRuntime() {
         guard let currentWorkspace else {
+            AppLog.state.error("startRuntime: no workspace selected")
             runtimeStatus = .failed
             runtimeDetail = "Choose a workspace before starting OpenCode."
             errorBanner = runtimeDetail
             return
         }
+        AppLog.state.log("startRuntime workspace=\(currentWorkspace.path, privacy: .public)")
 
         runtimeStatus = .starting
         errorBanner = nil
@@ -117,6 +134,7 @@ final class AppState: ObservableObject {
     }
 
     func stopRuntime() {
+        AppLog.state.log("stopRuntime status=\(String(describing: self.runtimeStatus), privacy: .public)")
         eventTask?.cancel()
         eventTask = nil
         sessionMessageTask?.cancel()
@@ -137,11 +155,16 @@ final class AppState: ObservableObject {
     }
 
     func createSession() {
-        guard client != nil else { return }
+        guard client != nil else {
+            AppLog.state.error("createSession: no client")
+            return
+        }
+        AppLog.state.log("createSession requested")
         Task {
             do {
                 guard let client else { return }
                 let session = try await client.createSession()
+                AppLog.state.log("createSession ok id=\(session.id, privacy: .public)")
                 sessions.insert(session, at: 0)
                 selectedSessionID = session.id
             } catch {
@@ -153,6 +176,7 @@ final class AppState: ObservableObject {
     func sendPrompt(_ prompt: String) {
         let trimmedPrompt = prompt.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedPrompt.isEmpty, let sessionID = selectedSessionID, let index = selectedSessionIndex else { return }
+        AppLog.state.log("sendPrompt session=\(sessionID, privacy: .public) chars=\(trimmedPrompt.count, privacy: .public)")
 
         sessions[index].isRunning = true
         sessions[index].messages.append(
@@ -212,13 +236,20 @@ final class AppState: ObservableObject {
     }
 
     private func waitForHealthAndRefresh(client: OpenCodeClient, baseURL: URL, workspaceName: String) async {
+        AppLog.state.log("waitForHealthAndRefresh baseURL=\(baseURL.absoluteString, privacy: .public)")
         let deadline = Date().addingTimeInterval(10)
         var lastError: Error?
+        var attempts = 0
         while Date() < deadline {
             if Task.isCancelled { return }
+            attempts += 1
             do {
                 try await client.health()
-                guard !Task.isCancelled, self.client?.baseURL == baseURL else { return }
+                guard !Task.isCancelled, self.client?.baseURL == baseURL else {
+                    AppLog.state.log("health succeeded but client/baseURL changed; aborting refresh")
+                    return
+                }
+                AppLog.state.log("OpenCode healthy after \(attempts, privacy: .public) attempt(s)")
                 runtimeStatus = .running
                 runtimeDetail = "OpenCode running at \(baseURL.absoluteString) for \(workspaceName)"
                 appendActivity(kind: .runtime, title: "OpenCode ready", detail: baseURL.absoluteString, state: "Running")
@@ -230,6 +261,7 @@ final class AppState: ObservableObject {
                 try? await Task.sleep(nanoseconds: 200_000_000)
             }
         }
+        AppLog.state.error("OpenCode health failed after \(attempts, privacy: .public) attempts: \(lastError?.localizedDescription ?? "timeout", privacy: .public)")
         guard self.client?.baseURL == baseURL else { return }
         let detail = lastError?.localizedDescription ?? "Health check timed out."
         runtimeStatus = .failed
@@ -250,6 +282,7 @@ final class AppState: ObservableObject {
         do {
             guard let client else { return }
             sessions = try await client.loadSessions()
+            AppLog.state.log("Loaded \(self.sessions.count, privacy: .public) sessions")
             selectedSessionID = sessions.first?.id
         } catch {
             presentError("Could not load sessions", error)
@@ -288,6 +321,7 @@ final class AppState: ObservableObject {
         do {
             if let loadedProviders = try await client?.loadProviders(), !loadedProviders.isEmpty {
                 providers = loadedProviders
+                AppLog.state.log("Loaded \(loadedProviders.count, privacy: .public) provider(s)")
             }
         } catch {
             let message = error.localizedDescription
@@ -300,12 +334,15 @@ final class AppState: ObservableObject {
         eventTask?.cancel()
         guard let client else { return }
         let request = client.makeEventRequest()
+        AppLog.events.log("Opening SSE stream: \(request.url?.absoluteString ?? "<nil>", privacy: .public)")
         eventTask = Task {
             do {
                 let (bytes, response) = try await URLSession.shared.bytes(for: request)
                 if let http = response as? HTTPURLResponse, http.statusCode != 200 {
+                    AppLog.events.error("SSE stream non-200: \(http.statusCode, privacy: .public)")
                     throw OpenCodeClientError.serverError(http.statusCode, "Event stream failed")
                 }
+                AppLog.events.log("SSE stream open")
 
                 var pendingLines: [String] = []
                 for try await line in bytes.lines {
@@ -316,9 +353,12 @@ final class AppState: ObservableObject {
                         pendingLines.append(line)
                     }
                 }
+                AppLog.events.log("SSE stream ended (loop exit)")
             } catch is CancellationError {
+                AppLog.events.log("SSE stream cancelled")
                 return
             } catch {
+                AppLog.events.error("SSE stream failed: \(error.localizedDescription, privacy: .public)")
                 await MainActor.run {
                     self.presentError("OpenCode event stream ended", error)
                 }
@@ -338,6 +378,7 @@ final class AppState: ObservableObject {
     }
 
     private func apply(_ event: OpenCodeEvent) {
+        AppLog.events.debug("event type=\(event.type, privacy: .public) session=\(event.sessionID ?? "-", privacy: .public) message=\(event.messageID ?? "-", privacy: .public)")
         switch event.type {
         case "message.updated":
             applyMessageUpdated(event)

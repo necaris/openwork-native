@@ -120,15 +120,26 @@ struct OpenCodeClient: Sendable {
     }
 
     private func responseData(for request: URLRequest, expectedStatus: Int) async throws -> Data {
-        let (data, response) = try await networking.data(for: request)
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw OpenCodeClientError.invalidResponse
+        let method = request.httpMethod ?? "GET"
+        let urlString = request.url?.absoluteString ?? "<nil>"
+        AppLog.client.debug("\(method, privacy: .public) \(urlString, privacy: .public)")
+        do {
+            let (data, response) = try await networking.data(for: request)
+            guard let httpResponse = response as? HTTPURLResponse else {
+                AppLog.client.error("\(method, privacy: .public) \(urlString, privacy: .public) — non-HTTP response")
+                throw OpenCodeClientError.invalidResponse
+            }
+            guard httpResponse.statusCode == expectedStatus else {
+                let body = String(data: data, encoding: .utf8) ?? ""
+                AppLog.client.error("\(method, privacy: .public) \(urlString, privacy: .public) — HTTP \(httpResponse.statusCode, privacy: .public) body=\(body, privacy: .public)")
+                throw OpenCodeClientError.serverError(httpResponse.statusCode, body)
+            }
+            AppLog.client.debug("\(method, privacy: .public) \(urlString, privacy: .public) — HTTP \(httpResponse.statusCode, privacy: .public) bytes=\(data.count, privacy: .public)")
+            return data
+        } catch {
+            AppLog.client.error("\(method, privacy: .public) \(urlString, privacy: .public) — transport error: \(error.localizedDescription, privacy: .public)")
+            throw error
         }
-        guard httpResponse.statusCode == expectedStatus else {
-            let body = String(data: data, encoding: .utf8) ?? ""
-            throw OpenCodeClientError.serverError(httpResponse.statusCode, body)
-        }
-        return data
     }
 }
 
