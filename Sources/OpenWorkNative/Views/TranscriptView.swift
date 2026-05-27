@@ -161,7 +161,7 @@ private struct MessageBubble: View {
             }
 
             Markdown(message.content)
-                .markdownTheme(.gitHub)
+                .markdownTheme(message.role == .user ? .basic : .gitHub)
                 .textSelection(.enabled)
                 .frame(maxWidth: .infinity, alignment: .leading)
 
