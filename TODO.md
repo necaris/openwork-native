@@ -60,11 +60,11 @@ Result: cost, token usage, and live model are invisible in the UI.
 
 Three issues filed, dependency-chained verify → plan → implement:
 
-- [ ] `#638518c` Verify OpenCode session/message status fields against
-      a live `opencode serve` and update the smoke doc.
-- [ ] `#eae0151` Plan UI placement and formatting (depends on `#638518c`).
-- [ ] `#5b3c0fc` Implement end-to-end decoders → models → events → views
-      (depends on `#eae0151`).
+- [x] `#638518c` Verify OpenCode session/message status fields against
+      a live `opencode serve` — see [opencode-api-smoke.md](blueprint/opencode-first-ship/opencode-api-smoke.md).
+- [x] `#eae0151` Plan UI placement and formatting — see
+      [status-visibility-ui-plan.md](blueprint/opencode-first-ship/status-visibility-ui-plan.md).
+- [ ] `#5b3c0fc` Implement end-to-end decoders → models → events → views.
 
 ### P0 — model/provider write path (`#e4811fd`, spec §6)
 
