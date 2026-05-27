@@ -78,8 +78,8 @@ Keychain entry for API keys stays out of scope unless option 1 is chosen.
 
 ### P1 — transcript/activity polish (`#20d3fd5`, spec §3 + §4)
 
-- [ ] Enter sends the current chat message; Shift+Return inserts newline (`#57ad8b6`).
-- [ ] Render conversation blocks in Markdown (code fences, lists, headings) (`#33ef4a3`).
+- [x] Enter sends the current chat message; Shift+Return inserts newline (`#57ad8b6`).
+- [x] Render conversation blocks in Markdown via MarkdownUI (`#33ef4a3`).
 - [ ] Per-block "copy code" on fenced code in markdown.
 - [ ] Retry last assistant turn; edit-and-resend user message.
 - [ ] Update the current running step in place instead of appending.
