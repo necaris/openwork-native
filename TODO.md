@@ -64,7 +64,7 @@ Three issues filed, dependency-chained verify → plan → implement:
       a live `opencode serve` — see [opencode-api-smoke.md](blueprint/opencode-first-ship/opencode-api-smoke.md).
 - [x] `#eae0151` Plan UI placement and formatting — see
       [status-visibility-ui-plan.md](blueprint/opencode-first-ship/status-visibility-ui-plan.md).
-- [ ] `#5b3c0fc` Implement end-to-end decoders → models → events → views.
+- [x] `#5b3c0fc` Implement end-to-end decoders → models → events → views.
 
 ### P0 — model/provider write path (`#e4811fd`, spec §6)
 
