@@ -1,178 +1,123 @@
 # OpenWork Native — TODO
 
-Scoped to the MVP in [SPEC.md](SPEC.md). This file is the human-readable
-checklist; open work is mirrored in `git issue`.
+Brief synthesis of next steps for the MVP.
 
-Task tracking status: `.ba/` is not initialized in this repo, so the active
-tracker is `git issue` plus this `TODO.md` summary.
+**Sources**
 
-Legend: `[x]` shipped · `[~]` partial / needs validation · `[ ]` remaining.
+- Scope and MVP feature list: [SPEC.md](SPEC.md)
+- User-facing status and build/run: [README.md](README.md)
+- Implementation plan and per-task status: [blueprint/opencode-first-ship/plan-opencode-first-ship.md](blueprint/opencode-first-ship/plan-opencode-first-ship.md)
+- Live API smoke results: [blueprint/opencode-first-ship/opencode-api-smoke.md](blueprint/opencode-first-ship/opencode-api-smoke.md)
+- Active issue tracker: `git issue list` (`.ba/` is not initialized)
 
----
-
-## Progress so far
-
-- [x] SwiftUI macOS shell with workspace picker, sidebar, transcript, activity,
-      settings, and toolbar runtime controls.
-- [x] Recent workspaces persisted with `UserDefaults` via `WorkspaceStore`.
-- [x] OpenCode process launch on an ephemeral localhost port.
-- [x] OpenCode stdout/stderr capture with unexpected-exit reporting.
-- [x] Async `OpenCodeClient` for sessions, messages, prompts, abort,
-      permissions, changed files, provider/model data, and `/event` stream
-      request construction.
-- [x] OpenCode-owned session identifiers flow through app models.
-- [x] Session list/create/open and lazy message-history loading.
-- [x] Prompt send path using OpenCode `prompt_async`.
-- [x] SSE parser plus event handling for message updates, message-part deltas,
-      reasoning/thinking parts, session status/errors, permissions, todos, tool
-      calls, and file-change refresh triggers.
-- [x] Markdown transcript rendering with selectable/copyable message text.
-- [x] Permission UI with Allow Once / Deny / Always Allow buttons wired to the
-      OpenCode permission reply endpoint.
-- [x] Changed-files UI and file actions: open, reveal in Finder, copy path.
-- [x] Changed-file loading from OpenCode status with `git status --porcelain`
-      fallback.
-- [x] Read-only model/provider loading and auth/config error banner path.
-- [x] Debug build, local unsigned `.app` bundle task, lint/test mask tasks.
-- [x] Swift test target with coverage for API decoding, SSE parsing, permission
-      decoding, and git-status parsing.
-
-Verification evidence:
-
-- `mask build` passes locally.
-- Raw `swift test --enable-swift-testing ...` passes 7 tests locally.
-- `mask test` exits successfully; any earlier `0 passed` summary was the harness
-  output aggregator, not Swift test discovery.
+Legend: `[x]` shipped · `[~]` partial · `[ ]` remaining.
 
 ---
 
-## Git issue tracker
+## Where we are
 
-Tracked issues:
+The first-shippable plan is implemented end-to-end at pre-alpha quality
+(SwiftUI shell, async OpenCode HTTP/SSE client, supervised local process,
+streaming transcript, permissions, activity, changed-files). `mask build`
+and `mask test` pass (8 tests). API contract is live-validated against
+opencode 1.15.3 (`#a62f634` closed).
 
-- [x] `#a62f634` Verify OpenCode API contract and live smoke path — **high**. Done; see `blueprint/opencode-first-ship/opencode-api-smoke.md`.
-- [ ] `#5a26fd5` Harden runtime and workspace lifecycle — **high**, open/unblocked.
-- [ ] `#e4811fd` Finish model/provider settings write path — **high**, blocked by `#a62f634`.
-- [ ] `#20d3fd5` Polish transcript and activity UX — medium, blocked by `#a62f634`.
-- [ ] `#535e7d9` Persist and manage permission always-allow policy — medium, open/unblocked.
-- [ ] `#1898b86` Release hardening accessibility and packaging — medium, blocked by `#a62f634` and `#5a26fd5`.
-- [ ] `#fbd6b56` Add read-only skills commands plugins and MCP inventory — low, open/unblocked.
+Recently landed beyond the plan:
 
-Use:
+- `AppLog` (`os.Logger`) wired through state/client/process so the running
+  `.app` is debuggable from Console.app.
+- `OpenCodeProcessManager.locateOpenCode()` resolves the binary via the
+  user's login-shell `PATH` (Homebrew/asdf-friendly) and surfaces a clear
+  "OpenCode not found" banner at startup.
+
+---
+
+## Next steps, by priority
+
+### P0 — finish runtime hardening (`#5a26fd5`, spec §1)
+
+Required for a trustworthy first ship.
+
+- [x] Resolve `opencode` via user shell `PATH` instead of launchd env.
+- [x] Surface "OpenCode not found" at startup, not only on Start.
+- [x] Poll `/health` after spawn before declaring runtime ready
+      (landed in 7e6a9f9).
+- [x] Graceful shutdown of the OpenCode child process on app quit
+      (`applicationWillTerminate`, terminate + wait, fall back to kill).
+- [x] Restart/recovery UX after unexpected exit ("Retry OpenCode" toolbar
+      button when runtimeStatus is `.failed`).
+- [x] Validate the recent-workspace path still exists before reopening;
+      missing entries are pruned and the list is rewritten on load.
+
+### P0 — model/provider write path (`#e4811fd`, spec §6)
+
+The Settings picker is currently `.constant(...)`. Decide and ship one of:
+
+- [ ] In-app default-model selection persisted to `opencode.json`, **or**
+- [ ] Explicit read-only mode with "Reveal opencode.json in Finder" and
+      clear setup guidance in Settings + the auth-error banner.
+
+Keychain entry for API keys stays out of scope unless option 1 is chosen.
+
+### P1 — transcript/activity polish (`#20d3fd5`, spec §3 + §4)
+
+- [ ] Enter sends the current chat message; Shift+Return inserts newline (`#57ad8b6`).
+- [ ] Render conversation blocks in Markdown (code fences, lists, headings) (`#33ef4a3`).
+- [ ] Per-block "copy code" on fenced code in markdown.
+- [ ] Retry last assistant turn; edit-and-resend user message.
+- [ ] Update the current running step in place instead of appending.
+- [ ] Group activity by session; cap history length.
+- [ ] Collapse/expand verbose tool calls.
+- [ ] Keyboard shortcuts: new session, switch session, focus composer, stop.
+
+### P1 — permission always-allow policy (`#535e7d9`, spec §5)
+
+OpenCode accepts "always" but does not persist per-workspace rules itself.
+
+- [ ] Decide: rely on OpenCode session-scoped behavior, or add local
+      persistent rules keyed by `(workspace, tool, target)`.
+- [ ] If local: settings UI to view/revoke rules; auto-resolve on prompt.
+
+### P2 — release hardening (`#1898b86`)
+
+- [ ] Get `swiftformat` + `swiftlint` available in CI and locally; the
+      `mask lint` gate currently no-ops when missing.
+- [ ] Accessibility pass: VoiceOver labels for icon-only controls.
+- [ ] Dark-mode visual review.
+- [ ] Document signing/notarization/hardened-runtime posture beyond the
+      local unsigned `.app`.
+
+### P3 — read-only inventory (`#fbd6b56`, spec §8)
+
+- [ ] Detect `.agents/skills/`, commands, plugins.
+- [ ] Parse and display MCP entries from `opencode.json`.
+- [ ] No import/edit/install in MVP.
+
+---
+
+## Tracker quick reference
 
 ```sh
-git issue ready
-git issue show <id>
-git issue start <id>
-git issue close <id>
+git issue ready          # unblocked queue
+git issue list           # all issues
+git issue show <id>      # detail
+git issue start <id>     # mark in_progress
+git issue close <id>     # mark done
 ```
 
----
+Current state (from `git issue list`):
 
-## Remaining tasks by spec area
+| ID | State | Title |
+|---|---|---|
+| `#a62f634` | done | Verify OpenCode API contract and live smoke path |
+| `#5a26fd5` | open / high | Harden runtime and workspace lifecycle |
+| `#e4811fd` | blocked / high | Finish model/provider settings write path |
+| `#20d3fd5` | blocked / medium | Polish transcript and activity UX |
+| `#535e7d9` | open / medium | Persist and manage permission always-allow policy |
+| `#1898b86` | blocked / medium | Release hardening, accessibility, packaging |
+| `#fbd6b56` | open / low | Add read-only skills/commands/plugins/MCP inventory |
+| `#57ad8b6` | open / medium | Enter sends current chat message by default |
+| `#33ef4a3` | open / medium | Render conversation blocks in Markdown |
 
-### 1. Local Workspace Management — spec §1
-
-- [x] Folder picker via `NSOpenPanel`.
-- [x] Recent-workspaces list persisted with `UserDefaults`.
-- [x] Current workspace path and runtime status in sidebar.
-- [x] Start/stop local OpenCode runtime controls.
-- [~] Process supervision: stdout/stderr capture and unexpected-exit handling
-      exist; remaining work is tracked in `#5a26fd5`.
-  - [ ] Poll health after startup before declaring runtime fully ready.
-  - [ ] Graceful shutdown on app quit.
-  - [ ] Restart/recovery UX after unexpected exit.
-  - [ ] Validate recent workspace path still exists before reopening.
-  - [ ] Security-scoped bookmarks for sandboxed builds.
-  - [ ] Decide per-workspace preferences shape.
-
-### 2. OpenCode Session UI — spec §2
-
-- [x] Sidebar lists OpenCode-backed sessions and supports selection.
-- [x] Create a new OpenCode session.
-- [x] Load message history for the selected session.
-- [x] Send prompt and stop/abort selected session through the client.
-- [~] Endpoint/event contract needs live OpenCode validation: `#a62f634`.
-- [ ] Persist last-selected session per workspace.
-- [ ] Add clearer per-list loading and error states.
-
-### 3. Composer + Transcript — spec §3
-
-- [x] Chat-style composer with Cmd+Return send.
-- [x] Visible streaming/running state.
-- [x] Live streamed assistant text/reasoning via SSE events.
-- [x] Markdown rendering with selectable text.
-- [x] Copy-message button per bubble.
-- [x] Auto-scroll to latest message.
-- [ ] Code-block rendering with per-block copy button: `#20d3fd5`.
-- [ ] Retry last assistant turn: `#20d3fd5`.
-- [ ] Edit/resend user message: `#20d3fd5`.
-- [ ] Ensure upstream cancellation semantics are correct for every stream:
-      `#a62f634` / `#20d3fd5`.
-
-### 4. Execution Visibility — spec §4
-
-- [x] Activity panel exists with Permissions, Activity, and Changed Files.
-- [x] Todo, tool, runtime, step, error, and file-refresh events are mapped from
-      OpenCode events where available.
-- [ ] Validate actual OpenCode event shapes and fill any mapping gaps:
-      `#a62f634`.
-- [ ] Track current running step with updates instead of append-only rows:
-      `#20d3fd5`.
-- [ ] Group activity by session and cap/persist activity history: `#20d3fd5`.
-- [ ] Collapse/expand verbose tool calls: `#20d3fd5`.
-
-### 5. Permission Handling — spec §5
-
-- [x] Permission requests can be decoded from OpenCode events.
-- [x] Pending requests render with action, target, reason, session, and decisions.
-- [x] Decisions are sent back to OpenCode.
-- [~] Always Allow is sent to OpenCode; local persistent rule management remains
-      open in `#535e7d9`.
-- [ ] Auto-resolve stored always-allow rules if local policy is required.
-- [ ] Settings UI to view/revoke stored rules if local policy is required.
-- [ ] Define timeout/background behavior.
-
-### 6. Model / Provider Settings — spec §6
-
-- [x] Load providers/models from OpenCode read-only.
-- [x] Show provider auth/connectivity status and main-window error banner.
-- [~] Settings picker is currently read-only (`.constant(...)`); write/persist
-      behavior is tracked in `#e4811fd`.
-- [ ] Decide whether first ship edits OpenCode config or only links to external
-      OpenCode setup.
-- [ ] If in-app API key entry is added, store secrets in Keychain.
-- [ ] Add “Open opencode.json” / “Reveal config in Finder” affordances.
-
-### 7. File / Status Awareness — spec §7
-
-- [x] Changed-file model/list section.
-- [x] Open/reveal/copy file actions.
-- [x] OpenCode status loading with git-status fallback.
-- [~] File-change events currently trigger a refresh; validate exact event
-      payloads in `#a62f634`.
-- [ ] Filter “files changed by current session” vs all dirty workspace files.
-- [ ] Add stronger status badges for add/modify/delete/rename.
-- [ ] Refresh-on-focus policy if events are missed.
-
-### 8. Skills / Commands / Plugins Manager — spec §8
-
-- [ ] Detect `.agents/skills/` and list entries: `#fbd6b56`.
-- [ ] Detect commands/plugins directories read-only: `#fbd6b56`.
-- [ ] Parse and display MCP config from `opencode.json`: `#fbd6b56`.
-- [ ] Keep import/edit/install/reload out of MVP unless scope changes.
-
----
-
-## Cross-cutting / release hardening
-
-- [ ] Live smoke test against an installed OpenCode server: `#a62f634`.
-- [x] Confirm Swift Testing discovery: raw run passes 7 tests.
-- [ ] Run lint when `swiftformat` and `swiftlint` are installed: `#1898b86`.
-- [ ] Accessibility pass for icon-only controls and VoiceOver labels:
-      `#1898b86`.
-- [ ] Dark-mode visual review: `#1898b86`.
-- [ ] Keyboard shortcuts for new session, switch session, focus composer, stop:
-      `#20d3fd5`.
-- [ ] Document signing/notarization/hardened-runtime posture beyond the local
-      unsigned `.app`: `#1898b86`.
+The "blocked" entries were blocked on `#a62f634`; they can now be unblocked
+in the tracker.
