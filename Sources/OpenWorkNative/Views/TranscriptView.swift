@@ -6,6 +6,10 @@ struct TranscriptView: View {
 
     var body: some View {
         VStack(spacing: 0) {
+            if let session = appState.selectedSession {
+                SessionStatusHeader(session: session)
+                Divider()
+            }
             ScrollViewReader { proxy in
                 ScrollView {
                     LazyVStack(alignment: .leading, spacing: 14) {
@@ -68,6 +72,41 @@ private struct EmptyTranscriptView: View {
     }
 }
 
+private struct SessionStatusHeader: View {
+    let session: OpenCodeSession
+
+    var body: some View {
+        HStack(spacing: 12) {
+            if let model = session.model {
+                Text("\(model.modelID) · \(model.providerID)")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            } else {
+                Text("No model")
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+            }
+            Spacer()
+            Text("\(CountFormatter.abbreviated(session.tokens.total)) tokens")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .monospacedDigit()
+                .help(tokenTooltip)
+            Text(CountFormatter.usd(session.cost))
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .monospacedDigit()
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 6)
+    }
+
+    private var tokenTooltip: String {
+        let t = session.tokens
+        return "input \(t.input) · output \(t.output) · reasoning \(t.reasoning) · cache read \(t.cacheRead) / write \(t.cacheWrite)"
+    }
+}
+
 private struct MessageBubble: View {
     let message: TranscriptMessage
 
@@ -108,9 +147,40 @@ private struct MessageBubble: View {
             Text(markdownContent)
                 .textSelection(.enabled)
                 .frame(maxWidth: .infinity, alignment: .leading)
+
+            if let errorMessage = message.errorMessage, !errorMessage.isEmpty {
+                DisclosureGroup {
+                    Text(errorMessage)
+                        .font(.caption)
+                        .textSelection(.enabled)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                } label: {
+                    Label("Upstream error", systemImage: "exclamationmark.triangle.fill")
+                        .font(.caption)
+                        .foregroundStyle(.red)
+                }
+            }
+
+            if message.role == .assistant, let footer = assistantFooter {
+                Text(footer)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .monospacedDigit()
+            }
         }
         .padding(12)
         .background(message.role == .user ? Color.accentColor.opacity(0.14) : Color(nsColor: .controlBackgroundColor))
         .clipShape(RoundedRectangle(cornerRadius: 8))
+    }
+
+    private var assistantFooter: String? {
+        var parts: [String] = []
+        if let model = message.model { parts.append(model.modelID) }
+        if let tokens = message.tokens {
+            parts.append("\(CountFormatter.abbreviated(tokens.input)) in / \(CountFormatter.abbreviated(tokens.output)) out")
+        }
+        if let cost = message.cost { parts.append(CountFormatter.usd(cost)) }
+        if let latency = message.latency, latency > 0 { parts.append(CountFormatter.latency(latency)) }
+        return parts.isEmpty ? nil : parts.joined(separator: " · ")
     }
 }

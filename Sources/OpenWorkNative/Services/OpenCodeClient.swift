@@ -253,14 +253,52 @@ private struct TextPartInput: Encodable {
     let text: String
 }
 
-private struct APISession: Decodable {
+struct APITokens: Decodable, Equatable, Sendable {
+    struct Cache: Decodable, Equatable, Sendable {
+        let read: Int?
+        let write: Int?
+    }
+
+    let input: Int?
+    let output: Int?
+    let reasoning: Int?
+    let cache: Cache?
+
+    var appModel: TokenUsage {
+        TokenUsage(
+            input: input ?? 0,
+            output: output ?? 0,
+            reasoning: reasoning ?? 0,
+            cacheRead: cache?.read ?? 0,
+            cacheWrite: cache?.write ?? 0
+        )
+    }
+}
+
+struct APISessionModel: Decodable, Equatable, Sendable {
+    let id: String?
+    let modelID: String?
+    let providerID: String?
+
+    var appModel: SessionModel? {
+        let resolvedID = modelID ?? id
+        guard let modelID = resolvedID, let providerID else { return nil }
+        return SessionModel(modelID: modelID, providerID: providerID)
+    }
+}
+
+struct APISession: Decodable {
     struct Time: Decodable {
         let created: Double
+        let updated: Double?
     }
 
     let id: String
     let title: String
     let time: Time?
+    let cost: Double?
+    let tokens: APITokens?
+    let model: APISessionModel?
 
     var appModel: OpenCodeSession {
         OpenCodeSession(
@@ -268,12 +306,15 @@ private struct APISession: Decodable {
             title: title,
             createdAt: Date(timeIntervalSince1970: (time?.created ?? 0) / 1000),
             isRunning: false,
-            messages: []
+            messages: [],
+            cost: cost ?? 0,
+            tokens: tokens?.appModel ?? TokenUsage(),
+            model: model?.appModel
         )
     }
 }
 
-private struct APIMessageEnvelope: Decodable {
+struct APIMessageEnvelope: Decodable {
     let info: APIMessageInfo
     let parts: [APIMessagePart]
 
@@ -286,28 +327,69 @@ private struct APIMessageEnvelope: Decodable {
             .filter { $0.type == "reasoning" }
             .compactMap(\.text)
             .joined(separator: "\n")
+        let created = (info.time?.created ?? 0) / 1000
+        let completed = (info.time?.completed ?? 0) / 1000
+        let latency: TimeInterval? = (info.time?.completed != nil && info.time?.created != nil)
+            ? max(0, completed - created)
+            : nil
         return TranscriptMessage(
             id: info.id,
             role: info.role == "assistant" ? .assistant : .user,
             content: content,
-            date: Date(timeIntervalSince1970: (info.time?.created ?? 0) / 1000),
+            date: Date(timeIntervalSince1970: created),
             isStreaming: false,
-            thinking: thinking.isEmpty ? nil : thinking
+            thinking: thinking.isEmpty ? nil : thinking,
+            model: info.resolvedModel,
+            tokens: info.tokens?.appModel,
+            cost: info.cost,
+            latency: latency,
+            errorMessage: info.error?.message
         )
     }
 }
 
-private struct APIMessageInfo: Decodable {
+struct APIMessageInfo: Decodable {
     struct Time: Decodable {
-        let created: Double
+        let created: Double?
+        let completed: Double?
+    }
+
+    struct APIError: Decodable {
+        struct Data: Decodable {
+            let message: String?
+        }
+        let name: String?
+        let data: Data?
+
+        var message: String? {
+            if let inner = data?.message, !inner.isEmpty { return inner }
+            return name
+        }
     }
 
     let id: String
     let role: String
     let time: Time?
+    let cost: Double?
+    let tokens: APITokens?
+
+    // Assistant info uses flat fields; user info nests these under "model".
+    let modelID: String?
+    let providerID: String?
+    let model: APISessionModel?
+
+    let error: APIError?
+
+    var resolvedModel: SessionModel? {
+        if let nested = model?.appModel { return nested }
+        if let modelID, let providerID {
+            return SessionModel(modelID: modelID, providerID: providerID)
+        }
+        return nil
+    }
 }
 
-private struct APIMessagePart: Decodable {
+struct APIMessagePart: Decodable {
     let type: String
     let text: String?
 }

@@ -392,6 +392,14 @@ final class AppState: ObservableObject {
             if let sessionID = event.sessionID {
                 markSession(sessionID, running: event.sessionStatus == "busy" && event.type != "session.idle")
             }
+        case "session.updated":
+            applySessionUpdated(event)
+        case "session.next.model.switched":
+            applyModelSwitched(event)
+        case "session.next.agent.switched":
+            if let agent = event.properties["agent"]?.stringValue {
+                appendActivity(kind: .runtime, title: "Agent switched", detail: agent, state: agent)
+            }
         case "session.error":
             appendActivity(kind: .step, title: "Session error", detail: event.properties["error"]?.displayValue ?? "Unknown error", state: "Failed")
             if let sessionID = event.sessionID { markSession(sessionID, running: false) }
@@ -461,6 +469,45 @@ final class AppState: ObservableObject {
             let tool = event.properties["part"]?.objectValue?["tool"]?.stringValue ?? "Tool"
             let state = event.properties["part"]?.objectValue?["state"]?.objectValue?["status"]?.stringValue ?? "running"
             appendActivity(kind: .tool, title: tool, detail: messageID, state: state)
+        }
+    }
+
+    private func applySessionUpdated(_ event: OpenCodeEvent) {
+        guard let info = event.properties["info"]?.objectValue,
+              let sessionID = info["id"]?.stringValue,
+              let index = sessions.firstIndex(where: { $0.id == sessionID }) else { return }
+        if let cost = info["cost"]?.doubleValue { sessions[index].cost = cost }
+        if let tokensObject = info["tokens"]?.objectValue {
+            sessions[index].tokens = TokenUsage(
+                input: tokensObject["input"]?.intValue ?? sessions[index].tokens.input,
+                output: tokensObject["output"]?.intValue ?? sessions[index].tokens.output,
+                reasoning: tokensObject["reasoning"]?.intValue ?? sessions[index].tokens.reasoning,
+                cacheRead: tokensObject["cache"]?.objectValue?["read"]?.intValue ?? sessions[index].tokens.cacheRead,
+                cacheWrite: tokensObject["cache"]?.objectValue?["write"]?.intValue ?? sessions[index].tokens.cacheWrite
+            )
+        }
+        if let modelObject = info["model"]?.objectValue {
+            let modelID = modelObject["id"]?.stringValue ?? modelObject["modelID"]?.stringValue
+            let providerID = modelObject["providerID"]?.stringValue
+            if let modelID, let providerID {
+                sessions[index].model = SessionModel(modelID: modelID, providerID: providerID)
+            }
+        }
+    }
+
+    private func applyModelSwitched(_ event: OpenCodeEvent) {
+        guard let sessionID = event.sessionID else { return }
+        let modelID = event.properties["modelID"]?.stringValue
+            ?? event.properties["model"]?.objectValue?["modelID"]?.stringValue
+            ?? event.properties["model"]?.objectValue?["id"]?.stringValue
+        let providerID = event.properties["providerID"]?.stringValue
+            ?? event.properties["model"]?.objectValue?["providerID"]?.stringValue
+        if let index = sessions.firstIndex(where: { $0.id == sessionID }),
+           let modelID, let providerID {
+            let previous = sessions[index].model?.modelID
+            sessions[index].model = SessionModel(modelID: modelID, providerID: providerID)
+            let detail = previous.map { "\($0) → \(modelID)" } ?? modelID
+            appendActivity(kind: .runtime, title: "Model switched", detail: detail, state: modelID)
         }
     }
 

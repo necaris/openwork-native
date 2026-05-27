@@ -15,12 +15,30 @@ enum RuntimeStatus: String, Equatable, Sendable {
     case failed = "Failed"
 }
 
+struct TokenUsage: Equatable, Sendable {
+    var input: Int = 0
+    var output: Int = 0
+    var reasoning: Int = 0
+    var cacheRead: Int = 0
+    var cacheWrite: Int = 0
+
+    var total: Int { input + output + reasoning }
+}
+
+struct SessionModel: Equatable, Sendable {
+    var modelID: String
+    var providerID: String
+}
+
 struct OpenCodeSession: Identifiable, Equatable, Sendable {
     let id: String
     var title: String
     var createdAt: Date
     var isRunning: Bool
     var messages: [TranscriptMessage]
+    var cost: Double = 0
+    var tokens: TokenUsage = TokenUsage()
+    var model: SessionModel?
 }
 
 struct TranscriptMessage: Identifiable, Equatable, Sendable {
@@ -36,6 +54,11 @@ struct TranscriptMessage: Identifiable, Equatable, Sendable {
     var date: Date
     var isStreaming: Bool
     var thinking: String?
+    var model: SessionModel?
+    var tokens: TokenUsage?
+    var cost: Double?
+    var latency: TimeInterval?
+    var errorMessage: String?
 }
 
 struct ActivityItem: Identifiable, Equatable, Sendable {
@@ -118,6 +141,16 @@ enum JSONValue: Decodable, Equatable, Sendable {
 
     var stringValue: String? {
         if case let .string(value) = self { return value }
+        return nil
+    }
+
+    var doubleValue: Double? {
+        if case let .number(value) = self { return value }
+        return nil
+    }
+
+    var intValue: Int? {
+        if case let .number(value) = self { return Int(value) }
         return nil
     }
 
