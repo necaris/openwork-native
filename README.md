@@ -37,7 +37,7 @@ checklist.
 
 ## Requirements
 
-- macOS 13 (Ventura) or later
+- macOS 14 (Sonoma) or later
 - Swift 6.0 / Xcode 16+
 - An [OpenCode](https://opencode.ai) binary on `PATH` (the app shells out to it
   for the local server)

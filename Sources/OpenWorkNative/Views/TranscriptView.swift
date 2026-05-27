@@ -1,3 +1,4 @@
+import MarkdownUI
 import SwiftUI
 
 struct TranscriptView: View {
@@ -24,7 +25,7 @@ struct TranscriptView: View {
                     }
                     .padding()
                 }
-                .onChange(of: appState.selectedSession?.messages.count) { _ in
+                .onChange(of: appState.selectedSession?.messages.count) {
                     guard let lastMessage = appState.selectedSession?.messages.last else { return }
                     withAnimation {
                         proxy.scrollTo(lastMessage.id, anchor: .bottom)
@@ -38,13 +39,20 @@ struct TranscriptView: View {
                 TextField("Ask OpenCode to work on this project", text: $prompt, axis: .vertical)
                     .lineLimit(2...6)
                     .textFieldStyle(.roundedBorder)
+                    .onKeyPress(.return) {
+                        if NSEvent.modifierFlags.contains(.shift) { return .ignored }
+                        if canSend {
+                            send()
+                            return .handled
+                        }
+                        return .ignored
+                    }
 
                 Button("Send") {
-                    appState.sendPrompt(prompt)
-                    prompt = ""
+                    send()
                 }
                 .keyboardShortcut(.return, modifiers: .command)
-                .disabled(prompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || appState.selectedSession == nil)
+                .disabled(!canSend)
 
                 Button("Stop") {
                     appState.stopSelectedSession()
@@ -54,6 +62,18 @@ struct TranscriptView: View {
             .padding()
         }
         .navigationTitle(appState.selectedSession?.title ?? "Transcript")
+    }
+
+    private var canSend: Bool {
+        !prompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            && appState.selectedSession != nil
+    }
+
+    private func send() {
+        let trimmed = prompt.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        appState.sendPrompt(prompt)
+        prompt = ""
     }
 }
 
@@ -110,10 +130,6 @@ private struct SessionStatusHeader: View {
 private struct MessageBubble: View {
     let message: TranscriptMessage
 
-    private var markdownContent: AttributedString {
-        (try? AttributedString(markdown: message.content)) ?? AttributedString(message.content)
-    }
-
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack {
@@ -144,7 +160,8 @@ private struct MessageBubble: View {
                 }
             }
 
-            Text(markdownContent)
+            Markdown(message.content)
+                .markdownTheme(.gitHub)
                 .textSelection(.enabled)
                 .frame(maxWidth: .infinity, alignment: .leading)
 
