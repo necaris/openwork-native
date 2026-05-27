@@ -8,6 +8,7 @@ final class AppState: ObservableObject {
     @Published var runtimeStatus: RuntimeStatus = .stopped
     @Published var runtimeDetail = "No workspace selected"
     @Published var errorBanner: String?
+    @Published var openCodeAvailable: Bool = false
     @Published var sessions: [OpenCodeSession] = []
     @Published var selectedSessionID: OpenCodeSession.ID? {
         didSet {
@@ -47,9 +48,10 @@ final class AppState: ObservableObject {
     }
 
     private func checkOpenCodeAvailability() {
-        if let url = OpenCodeProcessManager.locateOpenCode() {
-            appendActivity(kind: .runtime, title: "OpenCode found", detail: url.path, state: "Ready")
+        if OpenCodeProcessManager.locateOpenCode() != nil {
+            openCodeAvailable = true
         } else {
+            openCodeAvailable = false
             let message = OpenCodeProcessError.missingExecutable.localizedDescription
             errorBanner = message
             runtimeStatus = .failed

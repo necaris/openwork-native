@@ -1,7 +1,9 @@
+import AppKit
 import SwiftUI
 
 @main
 struct OpenWorkNativeApp: App {
+    @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @StateObject private var appState = AppState()
 
     var body: some Scene {
@@ -9,6 +11,7 @@ struct OpenWorkNativeApp: App {
             ContentView()
                 .environmentObject(appState)
                 .frame(minWidth: 1080, minHeight: 680)
+                .onAppear { appDelegate.appState = appState }
         }
         .windowStyle(.titleBar)
 
@@ -16,5 +19,14 @@ struct OpenWorkNativeApp: App {
             SettingsView()
                 .environmentObject(appState)
         }
+    }
+}
+
+final class AppDelegate: NSObject, NSApplicationDelegate {
+    weak var appState: AppState?
+
+    func applicationWillTerminate(_ notification: Notification) {
+        AppLog.app.log("applicationWillTerminate — stopping OpenCode runtime")
+        appState?.stopRuntime()
     }
 }

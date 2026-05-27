@@ -16,6 +16,14 @@ struct SidebarView: View {
                     Label(appState.runtimeStatus.rawValue, systemImage: runtimeIcon)
                         .font(.caption)
                         .foregroundStyle(runtimeColor)
+                    HStack(spacing: 6) {
+                        Circle()
+                            .fill(appState.openCodeAvailable ? Color.green : Color.red)
+                            .frame(width: 8, height: 8)
+                        Text(appState.openCodeAvailable ? "OpenCode available" : "OpenCode not found")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
                 }
                 .padding(.vertical, 4)
             }

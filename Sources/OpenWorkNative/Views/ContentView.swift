@@ -36,11 +36,16 @@ struct ContentView: View {
                     Button("Stop OpenCode") {
                         appState.stopRuntime()
                     }
+                } else if appState.runtimeStatus == .failed {
+                    Button("Retry OpenCode") {
+                        appState.startRuntime()
+                    }
+                    .disabled(appState.currentWorkspace == nil || !appState.openCodeAvailable)
                 } else {
                     Button("Start OpenCode") {
                         appState.startRuntime()
                     }
-                    .disabled(appState.currentWorkspace == nil)
+                    .disabled(appState.currentWorkspace == nil || !appState.openCodeAvailable)
                 }
             }
         }

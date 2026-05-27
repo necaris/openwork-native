@@ -107,16 +107,27 @@ final class OpenCodeProcessManager: @unchecked Sendable {
     }
 
     func stop() {
-        queue.sync {
-            guard let process else { return }
+        let target: Process? = queue.sync {
+            guard let process else { return nil }
             intentionallyStopping = true
             AppLog.process.log("Stopping OpenCode pid=\(process.processIdentifier, privacy: .public) running=\(process.isRunning, privacy: .public)")
-            if process.isRunning {
-                process.terminate()
-            }
             stdoutPipe?.fileHandleForReading.readabilityHandler = nil
             stderrPipe?.fileHandleForReading.readabilityHandler = nil
             self.process = nil
+            return process
+        }
+        guard let target else { return }
+        if target.isRunning {
+            target.terminate()
+            let deadline = Date().addingTimeInterval(3)
+            while target.isRunning, Date() < deadline {
+                Thread.sleep(forTimeInterval: 0.05)
+            }
+            if target.isRunning {
+                AppLog.process.error("OpenCode did not exit after SIGTERM; sending SIGKILL pid=\(target.processIdentifier, privacy: .public)")
+                kill(target.processIdentifier, SIGKILL)
+                target.waitUntilExit()
+            }
         }
     }
 
