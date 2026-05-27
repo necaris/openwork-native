@@ -19,7 +19,7 @@ A single line above the transcript ScrollView, below the navigation title:
 
 ```
 ┌─ Transcript ──────────────────────────────────────────────────────┐
-│ mercury-edit-2 · inception   12,438 tokens   $0.0431              │
+│ mercury-edit-2 · inception   12.4K tokens   $0.0431               │
 ├───────────────────────────────────────────────────────────────────┤
 │ (message bubbles…)                                                │
 ```
@@ -53,7 +53,7 @@ the content:
 │ ```swift                                       │
 │ let x = 42                                     │
 │ ```                                            │
-│ ── mercury-edit-2 · 1,204 in / 318 out · $0.0061 · 1.2s ──
+│ ── mercury-edit-2 · 1.2K in / 318 out · $0.0061 · 1.2s ──
 └────────────────────────────────────────────────┘
 ```
 
@@ -89,9 +89,10 @@ name; don't try to show agents in the header (model is enough chrome).
 
 ### 4. Number formatting
 
-- **Tokens.** Locale-grouped integer via `Int.formatted(.number)`.
-  Default locale rendering ("1,234,567"). Never abbreviate to "1.2K" —
-  developers want the exact number.
+- **Tokens.** Abbreviated, human-readable: `847`, `1.2K`, `34.5K`, `2M`,
+  `1.4B`. One decimal once we cross 1,000; drop the decimal when it's `.0`
+  (so `2K`, not `2.0K`). Exact integer is available on hover/tooltip for
+  anyone who wants the precise count.
 - **Cost.** USD via `Double.formatted(.currency(code: "USD"))`. Override
   fraction digits: 2 normally, **4 when total < $0.01** so sub-cent runs
   still show non-zero ("$0.0034"), "—" when null/zero and the turn hasn't
