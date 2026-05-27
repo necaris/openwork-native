@@ -49,6 +49,23 @@ Required for a trustworthy first ship.
 - [x] Validate the recent-workspace path still exists before reopening;
       missing entries are pruned and the list is rewritten on load.
 
+### P0 — session/message status visibility (model, tokens, cost)
+
+Audit (this session): the client decodes only `{id, title, time.created}`
+from `/session` and `{id, role, time.created}` from `/session/{id}/message`,
+dropping `cost`, `tokens`, model ID, provider ID. `session.updated` and
+`session.next.model.switched` events are silently ignored. Sidebar shows
+workspace + runtime status only; message bubbles show role + content only.
+Result: cost, token usage, and live model are invisible in the UI.
+
+Three issues filed, dependency-chained verify → plan → implement:
+
+- [ ] `#638518c` Verify OpenCode session/message status fields against
+      a live `opencode serve` and update the smoke doc.
+- [ ] `#eae0151` Plan UI placement and formatting (depends on `#638518c`).
+- [ ] `#5b3c0fc` Implement end-to-end decoders → models → events → views
+      (depends on `#eae0151`).
+
 ### P0 — model/provider write path (`#e4811fd`, spec §6)
 
 The Settings picker is currently `.constant(...)`. Decide and ship one of:
@@ -118,6 +135,9 @@ Current state (from `git issue list`):
 | `#fbd6b56` | open / low | Add read-only skills/commands/plugins/MCP inventory |
 | `#57ad8b6` | open / medium | Enter sends current chat message by default |
 | `#33ef4a3` | open / medium | Render conversation blocks in Markdown |
+| `#638518c` | open / high | Verify OpenCode session/message status fields |
+| `#eae0151` | open / high | Plan UI for session/message status (blocked by `#638518c`) |
+| `#5b3c0fc` | open / high | Implement session/message status visibility (blocked by `#eae0151`) |
 
 The "blocked" entries were blocked on `#a62f634`; they can now be unblocked
 in the tracker.
