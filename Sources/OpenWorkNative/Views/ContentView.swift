@@ -18,16 +18,24 @@ struct ContentView: View {
                 .background(Color.red)
             }
 
-            NavigationSplitView {
-                SidebarView()
-            } content: {
-                TranscriptView()
-            } detail: {
-                ActivityView()
-            }
+            TranscriptView()
+                .inspector(isPresented: $appState.isActivityInspectorVisible) {
+                    ActivityView()
+                        .inspectorColumnWidth(min: 250, ideal: 300, max: 400)
+                }
+        }
+        .sheet(isPresented: $appState.showingManagementSheet) {
+            ManagementView()
         }
         .toolbar {
             ToolbarItemGroup {
+                Button(action: {
+                    appState.showingManagementSheet = true
+                }) {
+                    Label("Workspaces & Sessions", systemImage: "list.bullet.rectangle")
+                }
+                .help("Manage Workspaces & Sessions")
+
                 Button(action: {
                     appState.pickWorkspace()
                 }) {

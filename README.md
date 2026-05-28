@@ -93,7 +93,7 @@ Sources/OpenWorkNative/
 │   └── WorkspaceStore          # Recent-workspace persistence
 └── Views/
     ├── ContentView             # Root layout
-    ├── SidebarView             # Workspace + session list
+    ├── ManagementView          # Workspace + session list sheet
     ├── TranscriptView          # Composer + streamed messages
     ├── ActivityView            # Plan / tool-call timeline
     └── SettingsView            # Model, provider, permissions

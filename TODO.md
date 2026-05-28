@@ -45,13 +45,13 @@ context controls, not the primary product surface.
 
 - [x] Restore the last valid workspace on launch (`#36055e3`).
 - [x] Restore the last selected session for that workspace (`#36055e3`).
-- [ ] Provide top-level quick actions for new workspace and new session
+- [x] Provide top-level quick actions for new workspace and new session
       (`#3806056`).
-- [ ] Move workspace/session browsing and pruning to a separate management
+- [x] Move workspace/session browsing and pruning to a separate management
       window or sheet.
-- [ ] Reduce or remove the permanent left sidebar once management moves out
+- [x] Reduce or remove the permanent left sidebar once management moves out
       (`#c8786b4`).
-- [ ] Update the no-context empty state so workspace/session selection is not
+- [x] Update the no-context empty state so workspace/session selection is not
       required before the user can decide what to do (`#dfbe6c9`).
 
 ### P0 — finish runtime hardening (`#5a26fd5`, spec §1)

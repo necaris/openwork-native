@@ -125,15 +125,50 @@ struct TranscriptView: View {
 }
 
 private struct EmptyTranscriptView: View {
+    @EnvironmentObject private var appState: AppState
+
     var body: some View {
-        VStack(spacing: 10) {
+        VStack(spacing: 16) {
             Image(systemName: "text.bubble")
-                .font(.largeTitle)
+                .font(.system(size: 48))
+                .foregroundStyle(.tertiary)
+            Text("OpenWork")
+                .font(.title2)
+                .fontWeight(.medium)
+            Text("Select or create a workspace to begin.")
                 .foregroundStyle(.secondary)
-            Text("No Session")
-                .font(.headline)
-            Text("Open a workspace and create a session to start.")
-                .foregroundStyle(.secondary)
+            
+            HStack(spacing: 16) {
+                Button(action: {
+                    appState.pickWorkspace()
+                }) {
+                    Label("Open Workspace", systemImage: "folder")
+                        .padding(.horizontal, 8)
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.large)
+                
+                Button(action: {
+                    appState.showingManagementSheet = true
+                }) {
+                    Label("View Recents", systemImage: "clock")
+                        .padding(.horizontal, 8)
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.large)
+                .disabled(appState.recentWorkspaces.isEmpty)
+            }
+            .padding(.top, 8)
+            
+            if appState.currentWorkspace != nil {
+                Divider().frame(width: 200).padding(.vertical, 8)
+                Button(action: {
+                    appState.createSession()
+                }) {
+                    Label("New Session", systemImage: "square.and.pencil")
+                }
+                .disabled(appState.runtimeStatus != .running)
+            }
         }
         .frame(maxWidth: .infinity, minHeight: 360)
     }

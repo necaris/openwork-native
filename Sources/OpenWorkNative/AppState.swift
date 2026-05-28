@@ -21,6 +21,8 @@ final class AppState: ObservableObject {
     @Published var permissionRequests: [PermissionRequest] = []
     @Published var changedFiles: [ChangedFile] = []
     @Published var inventory: [WorkspaceInventoryItem] = []
+    @Published var showingManagementSheet = false
+    @Published var isActivityInspectorVisible = true
     @Published var providers: [ModelProvider] = [
         ModelProvider(
             name: "OpenCode",
