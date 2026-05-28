@@ -8,7 +8,8 @@ sleep(2)
 
 let url = URL(string: "http://localhost:8772/event")!
 var req = URLRequest(url: url)
-req.setValue("application/json", forHTTPHeaderField: "Accept")
+req.setValue("text/event-stream", forHTTPHeaderField: "Accept")
+req.setValue("no-cache", forHTTPHeaderField: "Cache-Control")
 
 Task {
     do {
@@ -28,7 +29,16 @@ Task {
     postReq.httpMethod = "POST"
     postReq.setValue("application/json", forHTTPHeaderField: "Content-Type")
     postReq.httpBody = try! JSONEncoder().encode(["title": "Test"])
-    let _ = try! await URLSession.shared.data(for: postReq)
+    let (data, _) = try! await URLSession.shared.data(for: postReq)
+    let json = try! JSONSerialization.jsonObject(with: data) as! [String: Any]
+    let sessionID = json["id"] as! String
+
+    sleep(1)
+    var promptReq = URLRequest(url: URL(string: "http://localhost:8772/session/\(sessionID)/prompt_async")!)
+    promptReq.httpMethod = "POST"
+    promptReq.setValue("application/json", forHTTPHeaderField: "Content-Type")
+    promptReq.httpBody = try! JSONEncoder().encode(["parts": [["type": "text", "text": "hi"]]])
+    let _ = try! await URLSession.shared.data(for: promptReq)
 }
 
 RunLoop.main.run(until: Date(timeIntervalSinceNow: 5))

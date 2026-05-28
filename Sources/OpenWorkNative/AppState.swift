@@ -604,27 +604,31 @@ final class AppState: ObservableObject {
 
     private func upsertMessage(sessionID: String, messageID: String, role: TranscriptMessage.Role, part: TranscriptMessagePart?, streaming: Bool, isDelta: Bool = false) {
         guard let sessionIndex = sessions.firstIndex(where: { $0.id == sessionID }) else { return }
-        if let messageIndex = sessions[sessionIndex].messages.firstIndex(where: { $0.id == messageID }) {
+        
+        var session = sessions[sessionIndex]
+        defer { sessions[sessionIndex] = session }
+
+        if let messageIndex = session.messages.firstIndex(where: { $0.id == messageID }) {
             if let part {
-                if let partIndex = sessions[sessionIndex].messages[messageIndex].parts.firstIndex(where: { $0.id == part.id || ($0.id == "local-part" && role == .user) }) {
+                if let partIndex = session.messages[messageIndex].parts.firstIndex(where: { $0.id == part.id || ($0.id == "local-part" && role == .user) }) {
                     if isDelta {
-                        sessions[sessionIndex].messages[messageIndex].parts[partIndex].text += part.text
+                        session.messages[messageIndex].parts[partIndex].text += part.text
                     } else {
-                        sessions[sessionIndex].messages[messageIndex].parts[partIndex] = part
+                        session.messages[messageIndex].parts[partIndex] = part
                     }
                 } else {
-                    sessions[sessionIndex].messages[messageIndex].parts.append(part)
+                    session.messages[messageIndex].parts.append(part)
                 }
             }
-            sessions[sessionIndex].messages[messageIndex].isStreaming = streaming
+            session.messages[messageIndex].isStreaming = streaming
             return
         }
 
         // Reconcile local stubs with server-assigned IDs: the assistant stub is
         // a streaming placeholder, the user stub is the locally-inserted prompt.
         let stubPrefix = role == .assistant ? "stream-" : "local-user-"
-        if let stubIndex = sessions[sessionIndex].messages.lastIndex(where: { $0.role == role && $0.id.hasPrefix(stubPrefix) }) {
-            var existing = sessions[sessionIndex].messages[stubIndex]
+        if let stubIndex = session.messages.lastIndex(where: { $0.role == role && $0.id.hasPrefix(stubPrefix) }) {
+            var existing = session.messages[stubIndex]
             if let part {
                 if let partIndex = existing.parts.firstIndex(where: { $0.id == part.id || ($0.id == "local-part" && role == .user) }) {
                     if isDelta {
@@ -636,7 +640,7 @@ final class AppState: ObservableObject {
                     existing.parts.append(part)
                 }
             }
-            sessions[sessionIndex].messages[stubIndex] = TranscriptMessage(
+            session.messages[stubIndex] = TranscriptMessage(
                 id: messageID,
                 role: role,
                 parts: existing.parts,
@@ -646,7 +650,7 @@ final class AppState: ObservableObject {
             return
         }
 
-        sessions[sessionIndex].messages.append(
+        session.messages.append(
             TranscriptMessage(id: messageID, role: role, parts: part != nil ? [part!] : [], date: Date(), isStreaming: streaming)
         )
     }
@@ -672,12 +676,16 @@ final class AppState: ObservableObject {
 
     private func markSession(_ sessionID: String, running: Bool) {
         guard let index = sessions.firstIndex(where: { $0.id == sessionID }) else { return }
-        sessions[index].isRunning = running
+        
+        // Mutate a copy to ensure SwiftUI sees the change properly.
+        var session = sessions[index]
+        session.isRunning = running
         if !running {
-            for messageIndex in sessions[index].messages.indices {
-                sessions[index].messages[messageIndex].isStreaming = false
+            for messageIndex in session.messages.indices {
+                session.messages[messageIndex].isStreaming = false
             }
         }
+        sessions[index] = session
     }
 
     private func handleUnexpectedRuntimeExit(_ output: String) {

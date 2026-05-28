@@ -4,8 +4,9 @@ class AppState: ObservableObject {
     @Published var messages: [[String]] = [[]]
 
     func update() {
-        messages[0].append("Hello")
-        messages[0][0] += " World"
+        var copy = messages
+        copy[0].append("Hello")
+        messages = copy
     }
 }
 let a = AppState()
