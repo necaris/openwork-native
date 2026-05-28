@@ -33,6 +33,7 @@ Recently landed beyond the plan:
   workspace-first. The app should restore the last workspace/session by
   default, keep new workspace/session creation very easy, and move bulk
   management out of the permanent left sidebar.
+- Fixed core streaming loop and HTTP chunk buffering, enabling realtime streaming (`#30b1558`).
 
 ---
 
@@ -100,6 +101,7 @@ Keychain entry for API keys stays out of scope unless option 1 is chosen.
 
 - [x] Enter sends the current chat message; Shift+Return inserts newline (`#57ad8b6`).
 - [x] Render conversation blocks in Markdown via MarkdownUI (`#33ef4a3`).
+- [x] Reconstruct multi-part messages properly and handle connection drops (`#30b1558`).
 - [ ] Per-block "copy code" on fenced code in markdown.
 - [ ] Retry last assistant turn; edit-and-resend user message.
 - [ ] Update the current running step in place instead of appending.
@@ -144,31 +146,3 @@ git issue show <id>      # detail
 git issue start <id>     # mark in_progress
 git issue close <id>     # mark done
 ```
-
-Current state (from `git issue list`):
-
-| ID | State | Title |
-|---|---|---|
-| `#a62f634` | closed | Verify OpenCode API contract and live smoke path |
-| `#5a26fd5` | closed | Harden runtime and workspace lifecycle |
-| `#e4811fd` | closed | Finish model/provider settings write path |
-| `#20d3fd5` | open / medium | Polish transcript and activity UX |
-| `#36055e3` | closed | Restore last workspace and session on launch |
-| `#3806056` | open / medium | Add quick actions for new workspace and new session |
-| `#535e7d9` | open / medium | Persist and manage permission always-allow policy |
-| `#047d5e5` | blocked / medium | Document local-first workspace workflow deviations |
-| `#53bc194` | blocked / medium | Document session-as-run workflow deviations |
-| `#1898b86` | open / medium | Release hardening, accessibility, packaging |
-| `#c8786b4` | open / medium | Move workspace and session management out of the primary sidebar |
-| `#dfbe6c9` | open / medium | Update empty-state flow for optional workspace/session context |
-| `#fbd6b56` | closed | Add read-only skills/commands/plugins/MCP inventory |
-| `#d09946e` | blocked / medium | Document read-only configuration and inventory deviations |
-| `#f361640` | open / medium | Document local permission and recovery workflow deviations |
-| `#57ad8b6` | closed | Enter sends current chat message by default |
-| `#33ef4a3` | closed | Render conversation blocks in Markdown |
-| `#638518c` | closed | Verify OpenCode session/message status fields |
-| `#eae0151` | closed | Plan UI for session/message status |
-| `#5b3c0fc` | closed | Implement session/message status visibility |
-
-The "blocked" entries were blocked on `#a62f634`; they can now be unblocked
-in the tracker.
