@@ -1,0 +1,11 @@
+id: 58c956b
+title: Left-hand sidebar contents should expand to fill the width
+status: open
+priority: medium
+created: 2026-05-28T16:31:41Z
+updated: 2026-05-28T16:31:41Z
+author: Rami Chowdhury
+assignee: Rami Chowdhury
+hash_source: content
+
+Ensure that the contents of the left-hand sidebar (e.g. inventory items) expand to fill the available width as the sidebar is expanded or contracted.
