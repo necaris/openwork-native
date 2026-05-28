@@ -3,11 +3,17 @@ import Foundation
 struct WorkspaceInventoryService: Sendable {
     func loadInventory(in workspace: Workspace) async -> [WorkspaceInventoryItem] {
         let root = URL(fileURLWithPath: workspace.path, isDirectory: true)
+        let home = FileManager.default.homeDirectoryForCurrentUser
         var items: [WorkspaceInventoryItem] = []
 
         items.append(contentsOf: scan(kind: .skill, root: root, relativeDirectories: [".opencode/skills", ".claude/skills", ".agents/skills"]))
         items.append(contentsOf: scan(kind: .command, root: root, relativeDirectories: [".opencode/commands", ".agents/commands", "commands"]))
         items.append(contentsOf: scan(kind: .plugin, root: root, relativeDirectories: [".opencode/plugins", ".agents/plugins", "plugins"]))
+        
+        items.append(contentsOf: scanAbsolute(kind: .skill, root: home.appendingPathComponent(".agents/skills", isDirectory: true), label: "global"))
+        items.append(contentsOf: scanAbsolute(kind: .command, root: home.appendingPathComponent(".agents/commands", isDirectory: true), label: "global"))
+        items.append(contentsOf: scanAbsolute(kind: .plugin, root: home.appendingPathComponent(".agents/plugins", isDirectory: true), label: "global"))
+
         items.append(contentsOf: loadConfigItems(root: root))
 
         return items.sorted {
@@ -37,6 +43,24 @@ struct WorkspaceInventoryService: Sendable {
                     detail: relativeDirectory
                 )
             }
+        }
+    }
+
+    private func scanAbsolute(kind: WorkspaceInventoryKind, root: URL, label: String) -> [WorkspaceInventoryItem] {
+        guard let children = try? FileManager.default.contentsOfDirectory(
+            at: root,
+            includingPropertiesForKeys: [.isDirectoryKey],
+            options: [.skipsHiddenFiles]
+        ) else { return [] }
+
+        return children.compactMap { child -> WorkspaceInventoryItem? in
+            guard isInventoryEntry(child, kind: kind) else { return nil }
+            return WorkspaceInventoryItem(
+                kind: kind,
+                name: displayName(for: child),
+                path: child.path,
+                detail: label
+            )
         }
     }
 
