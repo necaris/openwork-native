@@ -3,10 +3,9 @@ title: Document read-only configuration and inventory deviations from OpenWork
 status: open
 priority: medium
 created: 2026-05-28T13:50:24Z
-updated: 2026-05-28T13:50:30Z
+updated: 2026-05-28T13:51:56Z
 author: Rami Chowdhury
 assignee: Rami Chowdhury
 hash_source: content
-blocks: fbd6b56
 
 Document that Settings and the skills/commands/plugins/MCP inventory are read-only for MVP. OpenWork Native should reveal local config/inventory and defer importing, installing, editing opencode.json, provider marketplaces, hosted skill hubs, and reload orchestration. Tie this documentation to the #fbd6b56 inventory implementation.
