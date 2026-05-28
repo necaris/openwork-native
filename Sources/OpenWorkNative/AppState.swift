@@ -22,7 +22,7 @@ final class AppState: ObservableObject {
     @Published var changedFiles: [ChangedFile] = []
     @Published var inventory: [WorkspaceInventoryItem] = []
     @Published var showingManagementSheet = false
-    @Published var isActivityInspectorVisible = true
+    @Published var isInventoryInspectorVisible = false
     @Published var providers: [ModelProvider] = [
         ModelProvider(
             name: "OpenCode",
