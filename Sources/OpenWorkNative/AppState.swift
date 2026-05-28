@@ -613,7 +613,10 @@ final class AppState: ObservableObject {
         guard let sessionIndex = sessions.firstIndex(where: { $0.id == sessionID }) else { return }
         
         var session = sessions[sessionIndex]
-        defer { sessions[sessionIndex] = session }
+        defer { 
+            sessions[sessionIndex] = session 
+            writeDebugLog(for: session)
+        }
 
         if let messageIndex = session.messages.firstIndex(where: { $0.id == messageID }) {
             if let part {
@@ -660,6 +663,22 @@ final class AppState: ObservableObject {
         session.messages.append(
             TranscriptMessage(id: messageID, role: role, parts: part != nil ? [part!] : [], date: Date(), isStreaming: streaming)
         )
+    }
+
+    private func writeDebugLog(for session: OpenCodeSession) {
+        guard let workspace = currentWorkspace else { return }
+        let logURL = URL(fileURLWithPath: workspace.path).appendingPathComponent("chat_debug_log.txt")
+        var log = "=== Session: \(session.id) ===\n"
+        log += "Running: \(session.isRunning)\n\n"
+        for msg in session.messages {
+            log += "[\(msg.role.rawValue)] (id: \(msg.id), streaming: \(msg.isStreaming))\n"
+            for part in msg.parts {
+                log += "  - Part: \(part.type) (\(part.id))\n"
+                log += "    Text: \(part.text)\n"
+            }
+            log += "\n"
+        }
+        try? log.write(to: logURL, atomically: true, encoding: .utf8)
     }
 
     private func roleForMessage(sessionID: String, messageID: String) -> TranscriptMessage.Role? {
