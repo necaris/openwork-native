@@ -83,7 +83,10 @@ struct OpenCodeClient: Sendable {
     }
 
     func makeEventRequest() -> URLRequest {
-        request(path: "/event", method: "GET")
+        var request = self.request(path: "/event", method: "GET")
+        request.setValue("text/event-stream", forHTTPHeaderField: "Accept")
+        request.setValue("no-cache", forHTTPHeaderField: "Cache-Control")
+        return request
     }
 
     private func get<T: Decodable>(path: String, queryDirectory: Bool = true) async throws -> T {

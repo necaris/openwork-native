@@ -443,9 +443,14 @@ final class AppState: ObservableObject {
         let events = SSEParser.events(from: lines + [""])
         lines.removeAll()
         for eventText in events {
-            guard let data = eventText.data(using: .utf8), let event = try? JSONDecoder().decode(OpenCodeEvent.self, from: data) else { continue }
-            await MainActor.run {
-                self.apply(event)
+            guard let data = eventText.data(using: .utf8) else { continue }
+            do {
+                let event = try JSONDecoder().decode(OpenCodeEvent.self, from: data)
+                await MainActor.run {
+                    self.apply(event)
+                }
+            } catch {
+                AppLog.events.error("Failed to decode SSE event: \(error.localizedDescription, privacy: .public)\n\(eventText, privacy: .public)")
             }
         }
     }
