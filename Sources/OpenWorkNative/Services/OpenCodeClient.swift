@@ -319,14 +319,6 @@ struct APIMessageEnvelope: Decodable {
     let parts: [APIMessagePart]
 
     var appModel: TranscriptMessage {
-        let content = parts
-            .filter { $0.type == "text" }
-            .compactMap(\.text)
-            .joined(separator: "\n")
-        let thinking = parts
-            .filter { $0.type == "reasoning" }
-            .compactMap(\.text)
-            .joined(separator: "\n")
         let created = (info.time?.created ?? 0) / 1000
         let completed = (info.time?.completed ?? 0) / 1000
         let latency: TimeInterval? = (info.time?.completed != nil && info.time?.created != nil)
@@ -335,10 +327,9 @@ struct APIMessageEnvelope: Decodable {
         return TranscriptMessage(
             id: info.id,
             role: info.role == "assistant" ? .assistant : .user,
-            content: content,
+            parts: parts.map { TranscriptMessagePart(id: $0.id ?? UUID().uuidString, type: $0.type, text: $0.text ?? "") },
             date: Date(timeIntervalSince1970: created),
             isStreaming: false,
-            thinking: thinking.isEmpty ? nil : thinking,
             model: info.resolvedModel,
             tokens: info.tokens?.appModel,
             cost: info.cost,
@@ -390,6 +381,7 @@ struct APIMessageInfo: Decodable {
 }
 
 struct APIMessagePart: Decodable {
+    let id: String?
     let type: String
     let text: String?
 }

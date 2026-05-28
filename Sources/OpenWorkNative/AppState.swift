@@ -39,7 +39,6 @@ final class AppState: ObservableObject {
     var client: OpenCodeClient?
     private var eventTask: Task<Void, Never>?
     private var sessionMessageTask: Task<Void, Never>?
-    private var messagePartText: [String: String] = [:]
     private var restoredSessionID: String?
 
     var selectedSession: OpenCodeSession? {
@@ -216,10 +215,10 @@ final class AppState: ObservableObject {
 
         sessions[index].isRunning = true
         sessions[index].messages.append(
-            TranscriptMessage(id: "local-user-\(UUID().uuidString)", role: .user, content: trimmedPrompt, date: Date(), isStreaming: false, thinking: nil)
+            TranscriptMessage(id: "local-user-\(UUID().uuidString)", role: .user, parts: [TranscriptMessagePart(id: "local-part", type: "text", text: trimmedPrompt)], date: Date(), isStreaming: false)
         )
         sessions[index].messages.append(
-            TranscriptMessage(id: "stream-\(UUID().uuidString)", role: .assistant, content: "", date: Date(), isStreaming: true, thinking: nil)
+            TranscriptMessage(id: "stream-\(UUID().uuidString)", role: .assistant, parts: [], date: Date(), isStreaming: true)
         )
         appendActivity(kind: .step, title: "Prompt sent", detail: trimmedPrompt, state: "Running")
 
@@ -405,31 +404,35 @@ final class AppState: ObservableObject {
         let request = client.makeEventRequest()
         AppLog.events.log("Opening SSE stream: \(request.url?.absoluteString ?? "<nil>", privacy: .public)")
         eventTask = Task {
-            do {
-                let (bytes, response) = try await URLSession.shared.bytes(for: request)
-                if let http = response as? HTTPURLResponse, http.statusCode != 200 {
-                    AppLog.events.error("SSE stream non-200: \(http.statusCode, privacy: .public)")
-                    throw OpenCodeClientError.serverError(http.statusCode, "Event stream failed")
-                }
-                AppLog.events.log("SSE stream open")
-
-                var pendingLines: [String] = []
-                for try await line in bytes.lines {
-                    guard !Task.isCancelled else { break }
-                    if line.isEmpty {
-                        await consumeSSELines(&pendingLines)
-                    } else {
-                        pendingLines.append(line)
+            while !Task.isCancelled {
+                do {
+                    let (bytes, response) = try await URLSession.shared.bytes(for: request)
+                    if let http = response as? HTTPURLResponse, http.statusCode != 200 {
+                        AppLog.events.error("SSE stream non-200: \(http.statusCode, privacy: .public)")
+                        throw OpenCodeClientError.serverError(http.statusCode, "Event stream failed")
                     }
-                }
-                AppLog.events.log("SSE stream ended (loop exit)")
-            } catch is CancellationError {
-                AppLog.events.log("SSE stream cancelled")
-                return
-            } catch {
-                AppLog.events.error("SSE stream failed: \(error.localizedDescription, privacy: .public)")
-                await MainActor.run {
-                    self.presentError("OpenCode event stream ended", error)
+                    AppLog.events.log("SSE stream open")
+
+                    var pendingLines: [String] = []
+                    for try await line in bytes.lines {
+                        guard !Task.isCancelled else { break }
+                        if line.isEmpty {
+                            await consumeSSELines(&pendingLines)
+                        } else {
+                            pendingLines.append(line)
+                        }
+                    }
+                    AppLog.events.log("SSE stream ended (loop exit), reconnecting...")
+                    try await Task.sleep(nanoseconds: 1_000_000_000) // 1 second backoff
+                } catch is CancellationError {
+                    AppLog.events.log("SSE stream cancelled")
+                    return
+                } catch {
+                    AppLog.events.error("SSE stream failed: \(error.localizedDescription, privacy: .public)")
+                    await MainActor.run {
+                        self.presentError("OpenCode event stream ended", error)
+                    }
+                    try? await Task.sleep(nanoseconds: 5_000_000_000) // 5 second backoff on error
                 }
             }
         }
@@ -495,7 +498,7 @@ final class AppState: ObservableObject {
               let sessionID = info["sessionID"]?.stringValue,
               let role = info["role"]?.stringValue else { return }
         let appRole: TranscriptMessage.Role = role == "assistant" ? .assistant : .user
-        upsertMessage(sessionID: sessionID, messageID: messageID, role: appRole, content: nil, thinking: nil, streaming: role == "assistant")
+        upsertMessage(sessionID: sessionID, messageID: messageID, role: appRole, part: nil, streaming: role == "assistant")
     }
 
     private func applyMessagePartDelta(_ event: OpenCodeEvent) {
@@ -504,44 +507,28 @@ final class AppState: ObservableObject {
               let partID = event.properties["partID"]?.stringValue,
               let delta = event.properties["delta"]?.stringValue else { return }
         let field = event.properties["field"]?.stringValue ?? "text"
-        let current = messagePartText[partID] ?? ""
-        let newText = current + delta
-        messagePartText[partID] = newText
-
-        // Deltas only make sense for the assistant turn; user content arrives
-        // whole in message.part.updated, never via deltas.
+        
+        // message.part.delta provides an incremental piece. We look up the existing message part if any.
+        // It's applied in upsertMessage by finding the matching part and appending.
         let role = roleForMessage(sessionID: sessionID, messageID: messageID) ?? .assistant
         guard role == .assistant else { return }
-
-        if field == "reasoning" {
-            upsertMessage(sessionID: sessionID, messageID: messageID, role: .assistant, content: nil, thinking: newText, streaming: true)
-        } else {
-            upsertMessage(sessionID: sessionID, messageID: messageID, role: .assistant, content: newText, thinking: nil, streaming: true)
-        }
+        
+        upsertMessage(sessionID: sessionID, messageID: messageID, role: .assistant, part: TranscriptMessagePart(id: partID, type: field, text: delta), streaming: true, isDelta: true)
     }
 
     private func applyMessagePartUpdated(_ event: OpenCodeEvent) {
         guard let sessionID = event.sessionID, let messageID = event.messageID else { return }
         let partType = event.partType ?? "text"
         let partID = event.partID ?? UUID().uuidString
-        let newText: String
-        if let delta = event.textDelta {
-            let current = messagePartText[partID] ?? ""
-            newText = current + delta
-        } else {
-            newText = event.partText ?? ""
-        }
-        messagePartText[partID] = newText
+        let text = event.textDelta ?? event.partText ?? ""
 
         // Role must come from the existing message, not be hardcoded.
         // message.part.updated fires for user echoes too (with partType "text").
         let role = roleForMessage(sessionID: sessionID, messageID: messageID) ?? .assistant
         let streaming = role == .assistant
 
-        if partType == "reasoning" {
-            upsertMessage(sessionID: sessionID, messageID: messageID, role: role, content: nil, thinking: newText, streaming: streaming)
-        } else if partType == "text" {
-            upsertMessage(sessionID: sessionID, messageID: messageID, role: role, content: newText, thinking: nil, streaming: streaming)
+        if partType == "reasoning" || partType == "text" {
+            upsertMessage(sessionID: sessionID, messageID: messageID, role: role, part: TranscriptMessagePart(id: partID, type: partType, text: text), streaming: streaming, isDelta: event.textDelta != nil)
         } else if partType == "tool" {
             let tool = event.properties["part"]?.objectValue?["tool"]?.stringValue ?? "Tool"
             let state = event.properties["part"]?.objectValue?["state"]?.objectValue?["status"]?.stringValue ?? "running"
@@ -588,11 +575,20 @@ final class AppState: ObservableObject {
         }
     }
 
-    private func upsertMessage(sessionID: String, messageID: String, role: TranscriptMessage.Role, content: String?, thinking: String?, streaming: Bool) {
+    private func upsertMessage(sessionID: String, messageID: String, role: TranscriptMessage.Role, part: TranscriptMessagePart?, streaming: Bool, isDelta: Bool = false) {
         guard let sessionIndex = sessions.firstIndex(where: { $0.id == sessionID }) else { return }
         if let messageIndex = sessions[sessionIndex].messages.firstIndex(where: { $0.id == messageID }) {
-            if let content { sessions[sessionIndex].messages[messageIndex].content = content }
-            if let thinking { sessions[sessionIndex].messages[messageIndex].thinking = thinking }
+            if let part {
+                if let partIndex = sessions[sessionIndex].messages[messageIndex].parts.firstIndex(where: { $0.id == part.id || ($0.id == "local-part" && role == .user) }) {
+                    if isDelta {
+                        sessions[sessionIndex].messages[messageIndex].parts[partIndex].text += part.text
+                    } else {
+                        sessions[sessionIndex].messages[messageIndex].parts[partIndex] = part
+                    }
+                } else {
+                    sessions[sessionIndex].messages[messageIndex].parts.append(part)
+                }
+            }
             sessions[sessionIndex].messages[messageIndex].isStreaming = streaming
             return
         }
@@ -601,20 +597,30 @@ final class AppState: ObservableObject {
         // a streaming placeholder, the user stub is the locally-inserted prompt.
         let stubPrefix = role == .assistant ? "stream-" : "local-user-"
         if let stubIndex = sessions[sessionIndex].messages.lastIndex(where: { $0.role == role && $0.id.hasPrefix(stubPrefix) }) {
-            let existing = sessions[sessionIndex].messages[stubIndex]
+            var existing = sessions[sessionIndex].messages[stubIndex]
+            if let part {
+                if let partIndex = existing.parts.firstIndex(where: { $0.id == part.id || ($0.id == "local-part" && role == .user) }) {
+                    if isDelta {
+                        existing.parts[partIndex].text += part.text
+                    } else {
+                        existing.parts[partIndex] = part
+                    }
+                } else {
+                    existing.parts.append(part)
+                }
+            }
             sessions[sessionIndex].messages[stubIndex] = TranscriptMessage(
                 id: messageID,
                 role: role,
-                content: content ?? existing.content,
+                parts: existing.parts,
                 date: existing.date,
-                isStreaming: streaming,
-                thinking: thinking ?? existing.thinking
+                isStreaming: streaming
             )
             return
         }
 
         sessions[sessionIndex].messages.append(
-            TranscriptMessage(id: messageID, role: role, content: content ?? "", date: Date(), isStreaming: streaming, thinking: thinking)
+            TranscriptMessage(id: messageID, role: role, parts: part != nil ? [part!] : [], date: Date(), isStreaming: streaming)
         )
     }
 

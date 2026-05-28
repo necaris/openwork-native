@@ -41,6 +41,12 @@ struct OpenCodeSession: Identifiable, Equatable, Sendable {
     var model: SessionModel?
 }
 
+struct TranscriptMessagePart: Identifiable, Equatable, Sendable {
+    let id: String
+    let type: String
+    var text: String
+}
+
 struct TranscriptMessage: Identifiable, Equatable, Sendable {
     enum Role: String, Sendable {
         case user = "User"
@@ -50,15 +56,23 @@ struct TranscriptMessage: Identifiable, Equatable, Sendable {
 
     let id: String
     var role: Role
-    var content: String
+    var parts: [TranscriptMessagePart]
     var date: Date
     var isStreaming: Bool
-    var thinking: String?
     var model: SessionModel?
     var tokens: TokenUsage?
     var cost: Double?
     var latency: TimeInterval?
     var errorMessage: String?
+
+    var content: String {
+        parts.filter { $0.type == "text" }.map(\.text).joined(separator: "\n")
+    }
+
+    var thinking: String? {
+        let t = parts.filter { $0.type == "reasoning" }.map(\.text).joined(separator: "\n")
+        return t.isEmpty ? nil : t
+    }
 }
 
 struct ActivityItem: Identifiable, Equatable, Sendable {
