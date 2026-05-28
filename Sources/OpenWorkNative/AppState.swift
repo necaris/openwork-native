@@ -31,7 +31,7 @@ final class AppState: ObservableObject {
     private let workspaceStore = WorkspaceStore()
     private let processManager = OpenCodeProcessManager()
     private let gitStatusService = GitStatusService()
-    private var client: OpenCodeClient?
+    var client: OpenCodeClient?
     private var eventTask: Task<Void, Never>?
     private var sessionMessageTask: Task<Void, Never>?
     private var messagePartText: [String: String] = [:]
@@ -379,7 +379,7 @@ final class AppState: ObservableObject {
         }
     }
 
-    private func apply(_ event: OpenCodeEvent) {
+    func apply(_ event: OpenCodeEvent) {
         AppLog.events.debug("event type=\(event.type, privacy: .public) session=\(event.sessionID ?? "-", privacy: .public) message=\(event.messageID ?? "-", privacy: .public)")
         switch event.type {
         case "message.updated":
@@ -441,6 +441,11 @@ final class AppState: ObservableObject {
         let newText = current + delta
         messagePartText[partID] = newText
 
+        // Deltas only make sense for the assistant turn; user content arrives
+        // whole in message.part.updated, never via deltas.
+        let role = roleForMessage(sessionID: sessionID, messageID: messageID) ?? .assistant
+        guard role == .assistant else { return }
+
         if field == "reasoning" {
             upsertMessage(sessionID: sessionID, messageID: messageID, role: .assistant, content: nil, thinking: newText, streaming: true)
         } else {
@@ -461,10 +466,15 @@ final class AppState: ObservableObject {
         }
         messagePartText[partID] = newText
 
+        // Role must come from the existing message, not be hardcoded.
+        // message.part.updated fires for user echoes too (with partType "text").
+        let role = roleForMessage(sessionID: sessionID, messageID: messageID) ?? .assistant
+        let streaming = role == .assistant
+
         if partType == "reasoning" {
-            upsertMessage(sessionID: sessionID, messageID: messageID, role: .assistant, content: nil, thinking: newText, streaming: true)
+            upsertMessage(sessionID: sessionID, messageID: messageID, role: role, content: nil, thinking: newText, streaming: streaming)
         } else if partType == "text" {
-            upsertMessage(sessionID: sessionID, messageID: messageID, role: .assistant, content: newText, thinking: nil, streaming: true)
+            upsertMessage(sessionID: sessionID, messageID: messageID, role: role, content: newText, thinking: nil, streaming: streaming)
         } else if partType == "tool" {
             let tool = event.properties["part"]?.objectValue?["tool"]?.stringValue ?? "Tool"
             let state = event.properties["part"]?.objectValue?["state"]?.objectValue?["status"]?.stringValue ?? "running"
@@ -517,20 +527,33 @@ final class AppState: ObservableObject {
             if let content { sessions[sessionIndex].messages[messageIndex].content = content }
             if let thinking { sessions[sessionIndex].messages[messageIndex].thinking = thinking }
             sessions[sessionIndex].messages[messageIndex].isStreaming = streaming
-        } else if let placeholderIndex = sessions[sessionIndex].messages.lastIndex(where: { $0.id.hasPrefix("stream-") && $0.isStreaming }) {
-            sessions[sessionIndex].messages[placeholderIndex] = TranscriptMessage(
+            return
+        }
+
+        // Reconcile local stubs with server-assigned IDs: the assistant stub is
+        // a streaming placeholder, the user stub is the locally-inserted prompt.
+        let stubPrefix = role == .assistant ? "stream-" : "local-user-"
+        if let stubIndex = sessions[sessionIndex].messages.lastIndex(where: { $0.role == role && $0.id.hasPrefix(stubPrefix) }) {
+            var existing = sessions[sessionIndex].messages[stubIndex]
+            sessions[sessionIndex].messages[stubIndex] = TranscriptMessage(
                 id: messageID,
                 role: role,
-                content: content ?? "",
-                date: Date(),
+                content: content ?? existing.content,
+                date: existing.date,
                 isStreaming: streaming,
-                thinking: thinking
+                thinking: thinking ?? existing.thinking
             )
-        } else {
-            sessions[sessionIndex].messages.append(
-                TranscriptMessage(id: messageID, role: role, content: content ?? "", date: Date(), isStreaming: streaming, thinking: thinking)
-            )
+            return
         }
+
+        sessions[sessionIndex].messages.append(
+            TranscriptMessage(id: messageID, role: role, content: content ?? "", date: Date(), isStreaming: streaming, thinking: thinking)
+        )
+    }
+
+    private func roleForMessage(sessionID: String, messageID: String) -> TranscriptMessage.Role? {
+        guard let sessionIndex = sessions.firstIndex(where: { $0.id == sessionID }) else { return nil }
+        return sessions[sessionIndex].messages.first(where: { $0.id == messageID })?.role
     }
 
     private func removePermission(id: String) {
