@@ -668,17 +668,28 @@ final class AppState: ObservableObject {
     private func writeDebugLog(for session: OpenCodeSession) {
         guard let workspace = currentWorkspace else { return }
         let logURL = URL(fileURLWithPath: workspace.path).appendingPathComponent("chat_debug_log.txt")
-        var log = "=== Session: \(session.id) ===\n"
+        var log = "=== [\(Date())] Session: \(session.id) ===\n"
         log += "Running: \(session.isRunning)\n\n"
         for msg in session.messages {
             log += "[\(msg.role.rawValue)] (id: \(msg.id), streaming: \(msg.isStreaming))\n"
             for part in msg.parts {
                 log += "  - Part: \(part.type) (\(part.id))\n"
-                log += "    Text: \(part.text)\n"
+                log += "    Text: \(part.text.replacingOccurrences(of: "\n", with: "\\n"))\n"
             }
             log += "\n"
         }
-        try? log.write(to: logURL, atomically: true, encoding: .utf8)
+        
+        if let data = log.data(using: .utf8) {
+            if FileManager.default.fileExists(atPath: logURL.path) {
+                if let fileHandle = try? FileHandle(forWritingTo: logURL) {
+                    fileHandle.seekToEndOfFile()
+                    fileHandle.write(data)
+                    fileHandle.closeFile()
+                }
+            } else {
+                try? data.write(to: logURL)
+            }
+        }
     }
 
     private func roleForMessage(sessionID: String, messageID: String) -> TranscriptMessage.Role? {
