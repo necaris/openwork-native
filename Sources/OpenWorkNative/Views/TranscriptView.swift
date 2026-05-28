@@ -7,14 +7,14 @@ struct TranscriptView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            if let session = appState.selectedSession {
+            if let session = appState.sessions.first(where: { $0.id == appState.selectedSessionID }) {
                 SessionStatusHeader(session: session)
                 Divider()
             }
             ScrollViewReader { proxy in
                 ScrollView {
                     LazyVStack(alignment: .leading, spacing: 14) {
-                        if let session = appState.selectedSession {
+                        if let session = appState.sessions.first(where: { $0.id == appState.selectedSessionID }) {
                             ForEach(session.messages) { message in
                                 MessageBubble(message: message)
                                     .id(message.id)
@@ -25,8 +25,8 @@ struct TranscriptView: View {
                     }
                     .padding()
                 }
-                .onChange(of: appState.selectedSession?.messages.count) {
-                    guard let lastMessage = appState.selectedSession?.messages.last else { return }
+                .onChange(of: appState.sessions.first(where: { $0.id == appState.selectedSessionID })?.messages.count) {
+                    guard let lastMessage = appState.sessions.first(where: { $0.id == appState.selectedSessionID })?.messages.last else { return }
                     withAnimation {
                         proxy.scrollTo(lastMessage.id, anchor: .bottom)
                     }
