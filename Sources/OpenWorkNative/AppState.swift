@@ -220,6 +220,7 @@ final class AppState: ObservableObject {
         sessions[index].messages.append(
             TranscriptMessage(id: "stream-\(UUID().uuidString)", role: .assistant, parts: [], date: Date(), isStreaming: true)
         )
+        sessions[index].isRunning = true
         appendActivity(kind: .step, title: "Prompt sent", detail: trimmedPrompt, state: "Running")
 
         Task {
@@ -497,8 +498,12 @@ final class AppState: ObservableObject {
               let messageID = info["id"]?.stringValue,
               let sessionID = info["sessionID"]?.stringValue,
               let role = info["role"]?.stringValue else { return }
+        
         let appRole: TranscriptMessage.Role = role == "assistant" ? .assistant : .user
-        upsertMessage(sessionID: sessionID, messageID: messageID, role: appRole, part: nil, streaming: role == "assistant")
+        let isCompleted = info["time"]?.objectValue?["completed"] != nil || info["finish"] != nil
+        let isStreaming = role == "assistant" && !isCompleted
+        
+        upsertMessage(sessionID: sessionID, messageID: messageID, role: appRole, part: nil, streaming: isStreaming)
     }
 
     private func applyMessagePartDelta(_ event: OpenCodeEvent) {
@@ -513,7 +518,18 @@ final class AppState: ObservableObject {
         let role = roleForMessage(sessionID: sessionID, messageID: messageID) ?? .assistant
         guard role == .assistant else { return }
         
-        upsertMessage(sessionID: sessionID, messageID: messageID, role: .assistant, part: TranscriptMessagePart(id: partID, type: field, text: delta), streaming: true, isDelta: true)
+        let streaming: Bool
+        if let sessionIndex = sessions.firstIndex(where: { $0.id == sessionID }) {
+            streaming = sessions[sessionIndex].isRunning
+        } else {
+            streaming = true
+        }
+        
+        if field == "reasoning" {
+            upsertMessage(sessionID: sessionID, messageID: messageID, role: .assistant, part: TranscriptMessagePart(id: partID, type: "reasoning", text: delta), streaming: streaming, isDelta: true)
+        } else {
+            upsertMessage(sessionID: sessionID, messageID: messageID, role: .assistant, part: TranscriptMessagePart(id: partID, type: "text", text: delta), streaming: streaming, isDelta: true)
+        }
     }
 
     private func applyMessagePartUpdated(_ event: OpenCodeEvent) {
@@ -525,7 +541,13 @@ final class AppState: ObservableObject {
         // Role must come from the existing message, not be hardcoded.
         // message.part.updated fires for user echoes too (with partType "text").
         let role = roleForMessage(sessionID: sessionID, messageID: messageID) ?? .assistant
-        let streaming = role == .assistant
+        
+        let streaming: Bool
+        if let sessionIndex = sessions.firstIndex(where: { $0.id == sessionID }) {
+            streaming = sessions[sessionIndex].isRunning
+        } else {
+            streaming = role == .assistant
+        }
 
         if partType == "reasoning" || partType == "text" {
             upsertMessage(sessionID: sessionID, messageID: messageID, role: role, part: TranscriptMessagePart(id: partID, type: partType, text: text), streaming: streaming, isDelta: event.textDelta != nil)
