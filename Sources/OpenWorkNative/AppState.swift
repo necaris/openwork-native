@@ -415,12 +415,19 @@ final class AppState: ObservableObject {
                     AppLog.events.log("SSE stream open")
 
                     var pendingLines: [String] = []
-                    for try await line in bytes.lines {
+                    var currentLine = ""
+                    for try await byte in bytes {
                         guard !Task.isCancelled else { break }
-                        if line.isEmpty {
-                            await consumeSSELines(&pendingLines)
-                        } else {
-                            pendingLines.append(line)
+                        let char = Character(UnicodeScalar(byte))
+                        if char == "\n" {
+                            if currentLine.isEmpty {
+                                await consumeSSELines(&pendingLines)
+                            } else {
+                                pendingLines.append(currentLine)
+                                currentLine = ""
+                            }
+                        } else if char != "\r" {
+                            currentLine.append(char)
                         }
                     }
                     AppLog.events.log("SSE stream ended (loop exit), reconnecting...")
