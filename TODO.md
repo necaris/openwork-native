@@ -129,6 +129,8 @@ OpenCode accepts "always" but does not persist per-workspace rules itself.
 - [x] Detect project-local OpenCode/compatible skills, commands, plugins.
 - [x] Parse and display MCP entries from `opencode.json`.
 - [x] Surface detected commands as composer slash-command insertions.
+- [ ] Show inventory of skills, commands, and MCPs in the left-hand sidebar (`#51ec10d`)
+- [ ] Ensure the left-hand sidebar contents expand to fill the width (`#58c956b`)
 - [x] No import/edit/install in MVP.
 
 ---
