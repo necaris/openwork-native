@@ -91,7 +91,7 @@ import Testing
     state.apply(messagePartDelta(sessionID: "ses_1", messageID: "msg_a", partID: "prt_a", delta: " "))
     state.apply(messagePartDelta(sessionID: "ses_1", messageID: "msg_a", partID: "prt_a", delta: "world"))
 
-    let assistant = try? #require(state.sessions[0].messages.last)
+    let assistant = state.sessions[0].messages.last
     #expect(assistant?.role == .assistant)
     #expect(assistant?.content == "Hello world")
 }

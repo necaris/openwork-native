@@ -43,8 +43,8 @@ Recently landed beyond the plan:
 Clear deviation from OpenWork: workspace and session management are optional
 context controls, not the primary product surface.
 
-- [ ] Restore the last valid workspace on launch (`#36055e3`).
-- [ ] Restore the last selected session for that workspace (`#36055e3`).
+- [x] Restore the last valid workspace on launch (`#36055e3`).
+- [x] Restore the last selected session for that workspace (`#36055e3`).
 - [ ] Provide top-level quick actions for new workspace and new session
       (`#3806056`).
 - [ ] Move workspace/session browsing and pruning to a separate management
@@ -150,7 +150,7 @@ Current state (from `git issue list`):
 | `#5a26fd5` | closed | Harden runtime and workspace lifecycle |
 | `#e4811fd` | closed | Finish model/provider settings write path |
 | `#20d3fd5` | open / medium | Polish transcript and activity UX |
-| `#36055e3` | open / medium | Restore last workspace and session on launch |
+| `#36055e3` | closed | Restore last workspace and session on launch |
 | `#3806056` | open / medium | Add quick actions for new workspace and new session |
 | `#535e7d9` | open / medium | Persist and manage permission always-allow policy |
 | `#047d5e5` | blocked / medium | Document local-first workspace workflow deviations |

@@ -13,6 +13,7 @@ final class AppState: ObservableObject {
     @Published var selectedSessionID: OpenCodeSession.ID? {
         didSet {
             guard oldValue != selectedSessionID else { return }
+            saveSelectedSession()
             loadSelectedSessionMessages()
         }
     }
@@ -28,13 +29,14 @@ final class AppState: ObservableObject {
         )
     ]
 
-    private let workspaceStore = WorkspaceStore()
+    private let workspaceStore: WorkspaceStore
     private let processManager = OpenCodeProcessManager()
     private let gitStatusService = GitStatusService()
     var client: OpenCodeClient?
     private var eventTask: Task<Void, Never>?
     private var sessionMessageTask: Task<Void, Never>?
     private var messagePartText: [String: String] = [:]
+    private var restoredSessionID: String?
 
     var selectedSession: OpenCodeSession? {
         guard let selectedSessionID else { return nil }
@@ -46,10 +48,29 @@ final class AppState: ObservableObject {
         return URL(fileURLWithPath: currentWorkspace.path).appendingPathComponent("opencode.json")
     }
 
-    init() {
+    init(workspaceStore: WorkspaceStore = WorkspaceStore()) {
+        self.workspaceStore = workspaceStore
         recentWorkspaces = workspaceStore.loadRecentWorkspaces()
         AppLog.app.log("AppState init — recentWorkspaces=\(self.recentWorkspaces.count, privacy: .public)")
+        restoreLastWorkspace()
         checkOpenCodeAvailability()
+    }
+
+    private func restoreLastWorkspace() {
+        guard let workspace = recentWorkspaces.first else { return }
+        currentWorkspace = workspace
+        restoredSessionID = workspaceStore.loadLastSessionID(for: workspace)
+        runtimeDetail = workspace.path
+        activity = [
+            ActivityItem(
+                id: UUID(),
+                kind: .runtime,
+                title: "Workspace restored",
+                detail: workspace.path,
+                state: "Ready"
+            )
+        ]
+        Task { await loadChangedFiles() }
     }
 
     private func checkOpenCodeAvailability() {
@@ -87,6 +108,7 @@ final class AppState: ObservableObject {
         stopRuntime()
         let workspace = Workspace(path: url.path)
         currentWorkspace = workspace
+        restoredSessionID = workspaceStore.loadLastSessionID(for: workspace)
         runtimeDetail = workspace.path
         errorBanner = nil
         recentWorkspaces.removeAll { $0.path == workspace.path }
@@ -304,7 +326,12 @@ final class AppState: ObservableObject {
             guard let client else { return }
             sessions = try await client.loadSessions()
             AppLog.state.log("Loaded \(self.sessions.count, privacy: .public) sessions")
-            selectedSessionID = sessions.first?.id
+            if let restoredSessionID, sessions.contains(where: { $0.id == restoredSessionID }) {
+                selectedSessionID = restoredSessionID
+            } else {
+                selectedSessionID = sessions.first?.id
+            }
+            restoredSessionID = nil
         } catch {
             presentError("Could not load sessions", error)
         }
@@ -614,6 +641,11 @@ final class AppState: ObservableObject {
     private var selectedSessionIndex: Int? {
         guard let selectedSessionID else { return nil }
         return sessions.firstIndex { $0.id == selectedSessionID }
+    }
+
+    private func saveSelectedSession() {
+        guard let currentWorkspace, selectedSessionID != nil else { return }
+        workspaceStore.saveLastSessionID(selectedSessionID, for: currentWorkspace)
     }
 
     private func appendActivity(kind: ActivityItem.Kind, title: String, detail: String, state: String) {
