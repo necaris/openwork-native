@@ -28,24 +28,44 @@ struct ContentView: View {
         }
         .toolbar {
             ToolbarItemGroup {
-                Button("Open Folder") {
+                Button(action: {
                     appState.pickWorkspace()
+                }) {
+                    Label("Open Workspace", systemImage: "folder.badge.plus")
                 }
+                .help("Open Workspace")
+
+                Button(action: {
+                    appState.createSession()
+                }) {
+                    Label("New Session", systemImage: "square.and.pencil")
+                }
+                .disabled(appState.currentWorkspace == nil || appState.runtimeStatus != .running)
+                .help("New Session")
 
                 if appState.runtimeStatus == .running || appState.runtimeStatus == .starting {
-                    Button("Stop OpenCode") {
+                    Button(action: {
                         appState.stopRuntime()
+                    }) {
+                        Label("Stop OpenCode", systemImage: "stop.circle")
                     }
+                    .help("Stop OpenCode")
                 } else if appState.runtimeStatus == .failed {
-                    Button("Retry OpenCode") {
+                    Button(action: {
                         appState.startRuntime()
+                    }) {
+                        Label("Retry OpenCode", systemImage: "arrow.clockwise.circle")
                     }
                     .disabled(appState.currentWorkspace == nil || !appState.openCodeAvailable)
+                    .help("Retry OpenCode")
                 } else {
-                    Button("Start OpenCode") {
+                    Button(action: {
                         appState.startRuntime()
+                    }) {
+                        Label("Start OpenCode", systemImage: "play.circle")
                     }
                     .disabled(appState.currentWorkspace == nil || !appState.openCodeAvailable)
+                    .help("Start OpenCode")
                 }
             }
         }
