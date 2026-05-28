@@ -29,10 +29,30 @@ Recently landed beyond the plan:
 - `OpenCodeProcessManager.locateOpenCode()` resolves the binary via the
   user's login-shell `PATH` (Homebrew/asdf-friendly) and surfaces a clear
   "OpenCode not found" banner at startup.
+- Product workflow decision: OpenWork Native is resume-first, not
+  workspace-first. The app should restore the last workspace/session by
+  default, keep new workspace/session creation very easy, and move bulk
+  management out of the permanent left sidebar.
 
 ---
 
 ## Next steps, by priority
+
+### P0 — resume-first workspace/session workflow
+
+Clear deviation from OpenWork: workspace and session management are optional
+context controls, not the primary product surface.
+
+- [ ] Restore the last valid workspace on launch (`#36055e3`).
+- [ ] Restore the last selected session for that workspace (`#36055e3`).
+- [ ] Provide top-level quick actions for new workspace and new session
+      (`#3806056`).
+- [ ] Move workspace/session browsing and pruning to a separate management
+      window or sheet.
+- [ ] Reduce or remove the permanent left sidebar once management moves out
+      (`#c8786b4`).
+- [ ] Update the no-context empty state so workspace/session selection is not
+      required before the user can decide what to do (`#dfbe6c9`).
 
 ### P0 — finish runtime hardening (`#5a26fd5`, spec §1)
 
@@ -130,9 +150,17 @@ Current state (from `git issue list`):
 | `#5a26fd5` | closed | Harden runtime and workspace lifecycle |
 | `#e4811fd` | closed | Finish model/provider settings write path |
 | `#20d3fd5` | open / medium | Polish transcript and activity UX |
+| `#36055e3` | open / medium | Restore last workspace and session on launch |
+| `#3806056` | open / medium | Add quick actions for new workspace and new session |
 | `#535e7d9` | open / medium | Persist and manage permission always-allow policy |
+| `#047d5e5` | blocked / medium | Document local-first workspace workflow deviations |
+| `#53bc194` | blocked / medium | Document session-as-run workflow deviations |
 | `#1898b86` | open / medium | Release hardening, accessibility, packaging |
+| `#c8786b4` | open / medium | Move workspace and session management out of the primary sidebar |
+| `#dfbe6c9` | open / medium | Update empty-state flow for optional workspace/session context |
 | `#fbd6b56` | open / low | Add read-only skills/commands/plugins/MCP inventory |
+| `#d09946e` | blocked / medium | Document read-only configuration and inventory deviations |
+| `#f361640` | open / medium | Document local permission and recovery workflow deviations |
 | `#57ad8b6` | closed | Enter sends current chat message by default |
 | `#33ef4a3` | closed | Render conversation blocks in Markdown |
 | `#638518c` | closed | Verify OpenCode session/message status fields |

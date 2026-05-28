@@ -19,7 +19,16 @@ Explicitly excluded from this MVP:
 
 ## Product Core
 
-The MVP is a local desktop client that lets a user pick a project folder, run OpenCode against it, send agent prompts, observe execution, respond to permission requests and work with output. 
+The MVP is a local desktop client that lets a user resume useful agent work
+with minimal ceremony. By default the app restores the last workspace and last
+session, starts from that context, and lets the user send the next prompt.
+Workspace and session management remain available, but they are not the primary
+navigation model.
+
+This is an intentional deviation from OpenWork: OpenWork Native treats local
+workspaces as optional execution contexts and OpenCode sessions as resumable
+run history. It does not make cloud-style workspace selection or manual task
+assignment the happy path.
 
 ## MVP Features
 
@@ -27,8 +36,13 @@ The MVP is a local desktop client that lets a user pick a project folder, run Op
 
 - Pick/open a local project folder.
 - Remember recent workspaces.
+- Restore the last valid workspace on launch when available.
+- Let users continue without choosing a workspace when no workspace is needed
+  yet; prompt only when an OpenCode-backed action requires one.
 - Show current workspace path and runtime status.
 - Start/stop a local OpenCode server for that workspace.
+- Keep workspace switching easy from compact chrome; full management belongs
+  in a separate window or sheet, not a permanent primary sidebar.
 
 Native app responsibilities:
 
@@ -47,10 +61,13 @@ Required:
 - create a new session/task
 - list previous sessions
 - open a session
+- restore the last selected session for the restored workspace by default
 - send a prompt
 - stream assistant output live
 - stop/abort a running session
 - view message history
+- make new-session creation a top-level quick action
+- move bulk session management to a separate window or sheet
 
 ### 3. Composer + Transcript
 
@@ -163,14 +180,29 @@ An intermediate server can be introduced later if remote support or stronger abs
 
 ## First Shippable Version
 
-1. Open local folder.
-2. Start/manage OpenCode.
-3. Create/list/open sessions.
+1. Restore the last valid workspace and session on launch when possible.
+2. Make new workspace and new session quick actions obvious.
+3. Start/manage OpenCode for the active workspace.
 4. Send prompt and stream response.
 5. Show activity/todos/tool progress.
 6. Handle permission prompts.
 7. Show changed files.
 8. Configure model/API key enough to get running.
+
+## Intentional OpenWork Workflow Deviations
+
+- **Resume-first instead of workspace-first.** Launch should continue the last
+  session in the last valid workspace. Choosing a workspace is a setup or
+  switching action, not a repeated first step.
+- **Optional manual session management.** Users should not have to browse a
+  session list before working. The current session is restored automatically,
+  while "New Session" remains a prominent quick action.
+- **Management is secondary chrome.** Workspace and session lists should move
+  to a dedicated management window or sheet. The main window should prioritize
+  the transcript, activity, permissions, and changed files.
+- **Local execution context, not team workflow object.** Workspaces identify
+  local folders for OpenCode execution; they are not OpenWork-style cloud
+  projects with org/team provisioning, assignment, or remote worker routing.
 
 ## Current Implementation Status (2026-05-14)
 

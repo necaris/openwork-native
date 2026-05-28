@@ -11,7 +11,10 @@ no cloud control plane, no hosted workers.
 
 ## What it does
 
-- Pick a local project folder and remember recent workspaces.
+- Resume the last workspace and session by default, so launch continues the
+  most recent work.
+- Make creating a new workspace or session a quick action instead of a required
+  navigation step.
 - Start, supervise, and stop a local OpenCode server bound to that workspace.
 - Create, list, and open OpenCode sessions; send prompts and stream responses.
 - Render markdown transcripts with copy support; retry is tracked as follow-up.
@@ -28,6 +31,14 @@ Cloud control plane, hosted workers, org/team provisioning, billing, remote
 worker connection, UI-control MCP bridge, Slack/Telegram connectors, hosted
 skill hubs, browser/mobile parity, multi-user workflow distribution. See
 [SPEC.md](SPEC.md) for the full list.
+
+## Workflow stance
+
+OpenWork Native intentionally differs from OpenWork's workspace-first product
+shape. The main window should favor continuing the last local session over
+manual workspace/session selection. Full workspace and session management can
+live in a separate window or sheet; it does not need to occupy the whole left
+sidebar.
 
 ## Current tracking
 
