@@ -7,6 +7,6 @@ updated: 2026-05-28T13:57:08Z
 author: Rami Chowdhury
 assignee: Rami Chowdhury
 hash_source: content
-depends_on: 36055e3
+depends_on: 36055e3,3806056
 
 Document that OpenWork Native intentionally starts from a user-selected local folder and supervised local OpenCode process, rather than an OpenWork-style cloud workspace/worker workflow. Capture the user-visible consequences: no org/project provisioning, no remote worker attachment, no hosted workspace state, and recent-workspace state stored locally.
