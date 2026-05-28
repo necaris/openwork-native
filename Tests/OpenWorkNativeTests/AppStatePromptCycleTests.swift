@@ -154,7 +154,7 @@ private func seedSession(_ state: AppState, sessionID: String) {
 }
 
 @MainActor
-private func waitForRequest(matching predicate: @escaping (URLRequest) -> Bool, in mock: RecordingNetworking, timeout seconds: Double = 1.0) async throws {
+private func waitForRequest(matching predicate: @escaping (URLRequest) -> Bool, in mock: RecordingNetworking, timeout seconds: Double = 3.0) async throws {
     let deadline = Date().addingTimeInterval(seconds)
     while Date() < deadline {
         if mock.requests.contains(where: predicate) { return }

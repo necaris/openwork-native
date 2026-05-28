@@ -20,6 +20,7 @@ final class AppState: ObservableObject {
     @Published var activity: [ActivityItem] = []
     @Published var permissionRequests: [PermissionRequest] = []
     @Published var changedFiles: [ChangedFile] = []
+    @Published var inventory: [WorkspaceInventoryItem] = []
     @Published var providers: [ModelProvider] = [
         ModelProvider(
             name: "OpenCode",
@@ -32,6 +33,7 @@ final class AppState: ObservableObject {
     private let workspaceStore: WorkspaceStore
     private let processManager = OpenCodeProcessManager()
     private let gitStatusService = GitStatusService()
+    private let inventoryService = WorkspaceInventoryService()
     var client: OpenCodeClient?
     private var eventTask: Task<Void, Never>?
     private var sessionMessageTask: Task<Void, Never>?
@@ -71,6 +73,7 @@ final class AppState: ObservableObject {
             )
         ]
         Task { await loadChangedFiles() }
+        Task { await loadInventory() }
     }
 
     private func checkOpenCodeAvailability() {
@@ -119,6 +122,7 @@ final class AppState: ObservableObject {
         sessions = []
         selectedSessionID = nil
         changedFiles = []
+        inventory = []
         activity = [
             ActivityItem(
                 id: UUID(),
@@ -129,6 +133,7 @@ final class AppState: ObservableObject {
             )
         ]
         Task { await loadChangedFiles() }
+        Task { await loadInventory() }
     }
 
     func startRuntime() {
@@ -264,6 +269,12 @@ final class AppState: ObservableObject {
         NSWorkspace.shared.open(url)
     }
 
+    func revealInventoryItem(_ item: WorkspaceInventoryItem) {
+        guard let workspacePath = currentWorkspace?.path else { return }
+        let url = URL(fileURLWithPath: workspacePath).appendingPathComponent(item.path)
+        NSWorkspace.shared.activateFileViewerSelecting([url])
+    }
+
     func revealOpenCodeConfig() {
         guard let configURL = openCodeConfigURL else {
             errorBanner = "Choose a workspace before opening OpenCode configuration."
@@ -363,6 +374,14 @@ final class AppState: ObservableObject {
         } catch {
             changedFiles = await gitStatusService.changedFiles(in: currentWorkspace)
         }
+    }
+
+    private func loadInventory() async {
+        guard let currentWorkspace else {
+            inventory = []
+            return
+        }
+        inventory = await inventoryService.loadInventory(in: currentWorkspace)
     }
 
     private func loadProviders() async {

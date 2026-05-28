@@ -35,6 +35,22 @@ struct TranscriptView: View {
 
             Divider()
 
+            if !matchingCommands.isEmpty {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        ForEach(matchingCommands.prefix(8)) { command in
+                            Button(command.slashCommand ?? command.name) {
+                                insertCommand(command)
+                            }
+                            .buttonStyle(.bordered)
+                            .controlSize(.small)
+                        }
+                    }
+                    .padding(.horizontal)
+                    .padding(.top, 8)
+                }
+            }
+
             HStack(alignment: .bottom, spacing: 10) {
                 TextField("Ask OpenCode to work on this project", text: $prompt, axis: .vertical)
                     .lineLimit(2...6)
@@ -47,6 +63,19 @@ struct TranscriptView: View {
                         }
                         return .ignored
                     }
+
+                Menu {
+                    ForEach(commandItems) { command in
+                        Button(command.slashCommand ?? command.name) {
+                            insertCommand(command)
+                        }
+                    }
+                } label: {
+                    Image(systemName: "terminal")
+                }
+                .keyboardShortcut("/", modifiers: .command)
+                .help("Commands")
+                .disabled(commandItems.isEmpty)
 
                 Button("Send") {
                     send()
@@ -67,6 +96,24 @@ struct TranscriptView: View {
     private var canSend: Bool {
         !prompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
             && appState.selectedSession != nil
+    }
+
+    private var commandItems: [WorkspaceInventoryItem] {
+        appState.inventory.filter { $0.kind == .command }
+    }
+
+    private var matchingCommands: [WorkspaceInventoryItem] {
+        let trimmed = prompt.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmed.hasPrefix("/") else { return [] }
+        let query = String(trimmed.dropFirst()).lowercased()
+        return commandItems.filter { command in
+            query.isEmpty || command.name.lowercased().contains(query)
+        }
+    }
+
+    private func insertCommand(_ command: WorkspaceInventoryItem) {
+        guard let slashCommand = command.slashCommand else { return }
+        prompt = "\(slashCommand) "
     }
 
     private func send() {

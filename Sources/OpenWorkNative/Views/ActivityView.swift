@@ -91,6 +91,60 @@ struct ActivityView: View {
                     }
                 }
             }
+
+            Section("Inventory") {
+                if appState.inventory.isEmpty {
+                    Text("No skills, commands, plugins, or MCP entries detected")
+                        .foregroundStyle(.secondary)
+                } else {
+                    ForEach(WorkspaceInventoryKind.allCases, id: \.rawValue) { kind in
+                        let items = appState.inventory.filter { $0.kind == kind }
+                        if !items.isEmpty {
+                            DisclosureGroup("\(kind.rawValue) (\(items.count))") {
+                                ForEach(items) { item in
+                                    HStack {
+                                        VStack(alignment: .leading, spacing: 3) {
+                                            Text(item.name)
+                                                .font(.headline)
+                                            Text(item.path)
+                                                .font(.caption)
+                                                .foregroundStyle(.secondary)
+                                                .lineLimit(1)
+                                                .textSelection(.enabled)
+                                            if !item.detail.isEmpty {
+                                                Text(item.detail)
+                                                    .font(.caption2)
+                                                    .foregroundStyle(.secondary)
+                                                    .lineLimit(2)
+                                                    .textSelection(.enabled)
+                                            }
+                                        }
+                                        Spacer()
+                                        Menu {
+                                            if let command = item.slashCommand {
+                                                Button("Copy Slash Command") {
+                                                    NSPasteboard.general.clearContents()
+                                                    NSPasteboard.general.setString(command, forType: .string)
+                                                }
+                                            }
+                                            Button("Reveal in Finder") {
+                                                appState.revealInventoryItem(item)
+                                            }
+                                            Button("Copy Path") {
+                                                NSPasteboard.general.clearContents()
+                                                NSPasteboard.general.setString(item.path, forType: .string)
+                                            }
+                                        } label: {
+                                            Image(systemName: "ellipsis.circle")
+                                        }
+                                    }
+                                    .padding(.vertical, 3)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
         .navigationTitle("Activity")
     }

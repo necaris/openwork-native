@@ -100,6 +100,26 @@ struct ModelProvider: Identifiable, Equatable, Sendable {
     var authStatus: String
 }
 
+enum WorkspaceInventoryKind: String, CaseIterable, Sendable {
+    case skill = "Skills"
+    case command = "Commands"
+    case plugin = "Plugins"
+    case mcp = "MCP"
+}
+
+struct WorkspaceInventoryItem: Identifiable, Equatable, Sendable {
+    var id: String { "\(kind.rawValue):\(path)" }
+    var kind: WorkspaceInventoryKind
+    var name: String
+    var path: String
+    var detail: String
+
+    var slashCommand: String? {
+        guard kind == .command else { return nil }
+        return "/\(name)"
+    }
+}
+
 enum PermissionDecision: String, Sendable {
     case once
     case always

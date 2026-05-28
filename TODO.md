@@ -126,9 +126,10 @@ OpenCode accepts "always" but does not persist per-workspace rules itself.
 
 ### P3 — read-only inventory (`#fbd6b56`, spec §8)
 
-- [ ] Detect `.agents/skills/`, commands, plugins.
-- [ ] Parse and display MCP entries from `opencode.json`.
-- [ ] No import/edit/install in MVP.
+- [x] Detect project-local OpenCode/compatible skills, commands, plugins.
+- [x] Parse and display MCP entries from `opencode.json`.
+- [x] Surface detected commands as composer slash-command insertions.
+- [x] No import/edit/install in MVP.
 
 ---
 
@@ -158,7 +159,7 @@ Current state (from `git issue list`):
 | `#1898b86` | open / medium | Release hardening, accessibility, packaging |
 | `#c8786b4` | open / medium | Move workspace and session management out of the primary sidebar |
 | `#dfbe6c9` | open / medium | Update empty-state flow for optional workspace/session context |
-| `#fbd6b56` | open / low | Add read-only skills/commands/plugins/MCP inventory |
+| `#fbd6b56` | closed | Add read-only skills/commands/plugins/MCP inventory |
 | `#d09946e` | blocked / medium | Document read-only configuration and inventory deviations |
 | `#f361640` | open / medium | Document local permission and recovery workflow deviations |
 | `#57ad8b6` | closed | Enter sends current chat message by default |
