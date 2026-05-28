@@ -1,0 +1,11 @@
+id: 51ec10d
+title: Show inventory of skills, commands, and MCPs in the left-hand sidebar
+status: open
+priority: medium
+created: 2026-05-28T16:31:39Z
+updated: 2026-05-28T16:31:39Z
+author: Rami Chowdhury
+assignee: Rami Chowdhury
+hash_source: content
+
+Now that workspace/session management has moved out of the left sidebar, use that space to show the read-only inventory (skills, commands, MCPs, plugins) that is currently in the ActivityView.
