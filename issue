@@ -1,0 +1,11 @@
+id: f361640
+title: Document local permission and recovery workflow deviations from OpenWork
+status: open
+priority: medium
+created: 2026-05-28T13:50:24Z
+updated: 2026-05-28T13:50:24Z
+author: Rami Chowdhury
+assignee: Rami Chowdhury
+hash_source: content
+
+Document that permissions, runtime recovery, and unexpected-exit handling are local OpenCode/runtime workflows in the native app. Contrast this with OpenWork-style remote control-plane policy or hosted worker recovery; capture allow-once/deny/always-allow behavior and any local persistence decision from #535e7d9.
