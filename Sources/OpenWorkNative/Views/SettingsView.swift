@@ -5,16 +5,37 @@ struct SettingsView: View {
 
     var body: some View {
         Form {
+            Section("OpenCode Config") {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Model selection is read-only in OpenWork. Edit opencode.json outside the app, then restart OpenCode to reload providers.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+
+                    HStack {
+                        Text(appState.openCodeConfigURL?.path ?? "Choose a workspace to locate opencode.json")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(2)
+                            .textSelection(.enabled)
+
+                        Spacer()
+
+                        Button("Reveal opencode.json") {
+                            appState.revealOpenCodeConfig()
+                        }
+                        .disabled(appState.openCodeConfigURL == nil)
+                    }
+                }
+                .padding(.vertical, 4)
+            }
+
             Section("Model Providers") {
                 ForEach(appState.providers) { provider in
                     VStack(alignment: .leading, spacing: 8) {
                         Text(provider.name)
                             .font(.headline)
-                        Picker("Default model", selection: .constant(provider.selectedModel)) {
-                            ForEach(provider.models, id: \.self) { model in
-                                Text(model).tag(model)
-                            }
-                        }
+                        LabeledContent("Default model", value: provider.selectedModel)
+                        LabeledContent("Available models", value: provider.models.joined(separator: ", "))
                         Text(provider.authStatus)
                             .font(.caption)
                             .foregroundStyle(.secondary)
@@ -24,7 +45,7 @@ struct SettingsView: View {
             }
         }
         .formStyle(.grouped)
-        .frame(width: 520, height: 320)
+        .frame(width: 560, height: 380)
         .padding()
     }
 }

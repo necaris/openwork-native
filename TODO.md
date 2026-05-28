@@ -68,11 +68,11 @@ Three issues filed, dependency-chained verify → plan → implement:
 
 ### P0 — model/provider write path (`#e4811fd`, spec §6)
 
-The Settings picker is currently `.constant(...)`. Decide and ship one of:
+The Settings picker was replaced with explicit read-only configuration:
 
-- [ ] In-app default-model selection persisted to `opencode.json`, **or**
-- [ ] Explicit read-only mode with "Reveal opencode.json in Finder" and
+- [x] Explicit read-only mode with "Reveal opencode.json in Finder" and
       clear setup guidance in Settings + the auth-error banner.
+- [x] In-app default-model persistence to `opencode.json` is deferred.
 
 Keychain entry for API keys stays out of scope unless option 1 is chosen.
 
@@ -126,18 +126,18 @@ Current state (from `git issue list`):
 
 | ID | State | Title |
 |---|---|---|
-| `#a62f634` | done | Verify OpenCode API contract and live smoke path |
-| `#5a26fd5` | open / high | Harden runtime and workspace lifecycle |
-| `#e4811fd` | blocked / high | Finish model/provider settings write path |
-| `#20d3fd5` | blocked / medium | Polish transcript and activity UX |
+| `#a62f634` | closed | Verify OpenCode API contract and live smoke path |
+| `#5a26fd5` | closed | Harden runtime and workspace lifecycle |
+| `#e4811fd` | closed | Finish model/provider settings write path |
+| `#20d3fd5` | open / medium | Polish transcript and activity UX |
 | `#535e7d9` | open / medium | Persist and manage permission always-allow policy |
-| `#1898b86` | blocked / medium | Release hardening, accessibility, packaging |
+| `#1898b86` | open / medium | Release hardening, accessibility, packaging |
 | `#fbd6b56` | open / low | Add read-only skills/commands/plugins/MCP inventory |
-| `#57ad8b6` | open / medium | Enter sends current chat message by default |
-| `#33ef4a3` | open / medium | Render conversation blocks in Markdown |
-| `#638518c` | open / high | Verify OpenCode session/message status fields |
-| `#eae0151` | open / high | Plan UI for session/message status (blocked by `#638518c`) |
-| `#5b3c0fc` | open / high | Implement session/message status visibility (blocked by `#eae0151`) |
+| `#57ad8b6` | closed | Enter sends current chat message by default |
+| `#33ef4a3` | closed | Render conversation blocks in Markdown |
+| `#638518c` | closed | Verify OpenCode session/message status fields |
+| `#eae0151` | closed | Plan UI for session/message status |
+| `#5b3c0fc` | closed | Implement session/message status visibility |
 
 The "blocked" entries were blocked on `#a62f634`; they can now be unblocked
 in the tracker.

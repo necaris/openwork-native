@@ -41,6 +41,11 @@ final class AppState: ObservableObject {
         return sessions.first { $0.id == selectedSessionID }
     }
 
+    var openCodeConfigURL: URL? {
+        guard let currentWorkspace else { return nil }
+        return URL(fileURLWithPath: currentWorkspace.path).appendingPathComponent("opencode.json")
+    }
+
     init() {
         recentWorkspaces = workspaceStore.loadRecentWorkspaces()
         AppLog.app.log("AppState init — recentWorkspaces=\(self.recentWorkspaces.count, privacy: .public)")
@@ -237,6 +242,20 @@ final class AppState: ObservableObject {
         NSWorkspace.shared.open(url)
     }
 
+    func revealOpenCodeConfig() {
+        guard let configURL = openCodeConfigURL else {
+            errorBanner = "Choose a workspace before opening OpenCode configuration."
+            return
+        }
+
+        if FileManager.default.fileExists(atPath: configURL.path) {
+            NSWorkspace.shared.activateFileViewerSelecting([configURL])
+        } else {
+            NSWorkspace.shared.activateFileViewerSelecting([configURL.deletingLastPathComponent()])
+            errorBanner = "No opencode.json found in this workspace. Create or edit it outside OpenWork, then restart OpenCode."
+        }
+    }
+
     private func waitForHealthAndRefresh(client: OpenCodeClient, baseURL: URL, workspaceName: String) async {
         AppLog.state.log("waitForHealthAndRefresh baseURL=\(baseURL.absoluteString, privacy: .public)")
         let deadline = Date().addingTimeInterval(10)
@@ -327,7 +346,7 @@ final class AppState: ObservableObject {
             }
         } catch {
             let message = error.localizedDescription
-            errorBanner = "OpenCode model/provider configuration needs attention."
+            errorBanner = "OpenCode model/provider configuration needs attention. Edit opencode.json outside OpenWork, then restart OpenCode."
             providers = [ModelProvider(name: "OpenCode", models: ["Unavailable"], selectedModel: "Unavailable", authStatus: message)]
         }
     }
@@ -534,7 +553,7 @@ final class AppState: ObservableObject {
         // a streaming placeholder, the user stub is the locally-inserted prompt.
         let stubPrefix = role == .assistant ? "stream-" : "local-user-"
         if let stubIndex = sessions[sessionIndex].messages.lastIndex(where: { $0.role == role && $0.id.hasPrefix(stubPrefix) }) {
-            var existing = sessions[sessionIndex].messages[stubIndex]
+            let existing = sessions[sessionIndex].messages[stubIndex]
             sessions[sessionIndex].messages[stubIndex] = TranscriptMessage(
                 id: messageID,
                 role: role,
