@@ -416,9 +416,8 @@ final class AppState: ObservableObject {
 
                     var pendingLines: [String] = []
                     var currentLine = ""
-                    for try await byte in bytes {
+                    for try await char in bytes.characters {
                         guard !Task.isCancelled else { break }
-                        let char = Character(UnicodeScalar(byte))
                         if char == "\n" {
                             if currentLine.isEmpty {
                                 await consumeSSELines(&pendingLines)
