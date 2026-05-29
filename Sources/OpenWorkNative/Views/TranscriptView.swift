@@ -239,6 +239,7 @@ private struct MessageBubble: View {
                         .foregroundStyle(.secondary)
                         .textSelection(.enabled)
                         .frame(maxWidth: .infinity, alignment: .leading)
+                        .lineLimit(nil)
                 }
             }
 
@@ -246,6 +247,7 @@ private struct MessageBubble: View {
                 .markdownTheme(message.role == .user ? .basic : .gitHub)
                 .textSelection(.enabled)
                 .frame(maxWidth: .infinity, alignment: .leading)
+                .lineLimit(nil)
 
             if let errorMessage = message.errorMessage, !errorMessage.isEmpty {
                 DisclosureGroup {

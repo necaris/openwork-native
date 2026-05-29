@@ -21,14 +21,12 @@ struct ContentView: View {
             NavigationSplitView {
                 InventoryView()
                     .navigationSplitViewColumnWidth(min: 200, ideal: 250, max: 400)
-            } content: {
+            } detail: {
                 TranscriptView()
                     .inspector(isPresented: .constant(true)) {
                         ActivityView()
                             .inspectorColumnWidth(min: 250, ideal: 300, max: 400)
                     }
-            } detail: {
-                EmptyView()
             }
         }
         .sheet(isPresented: $appState.showingManagementSheet) {
