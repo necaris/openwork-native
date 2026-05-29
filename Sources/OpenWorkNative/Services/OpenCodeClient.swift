@@ -327,10 +327,21 @@ struct APIMessageEnvelope: Decodable {
         let latency: TimeInterval? = (info.time?.completed != nil && info.time?.created != nil)
             ? max(0, completed - created)
             : nil
+            
+        let mappedParts = parts.map { part -> TranscriptMessagePart in
+            var text = part.text ?? ""
+            if part.type == "tool_call" {
+                text = part.toolCall?.name ?? "tool"
+            } else if part.type == "tool_result" {
+                text = part.toolResult?.text ?? "No output"
+            }
+            return TranscriptMessagePart(id: part.id ?? UUID().uuidString, type: part.type, text: text)
+        }
+            
         return TranscriptMessage(
             id: info.id,
             role: info.role == "assistant" ? .assistant : .user,
-            parts: parts.map { TranscriptMessagePart(id: $0.id ?? UUID().uuidString, type: $0.type, text: $0.text ?? "") },
+            parts: mappedParts,
             date: Date(timeIntervalSince1970: created),
             isStreaming: false,
             model: info.resolvedModel,
@@ -387,6 +398,16 @@ struct APIMessagePart: Decodable {
     let id: String?
     let type: String
     let text: String?
+    let toolCall: APIToolCall?
+    let toolResult: APIToolResult?
+    
+    struct APIToolCall: Decodable {
+        let name: String
+    }
+    
+    struct APIToolResult: Decodable {
+        let text: String?
+    }
 }
 
 private struct APIChangedFile: Decodable {

@@ -573,6 +573,15 @@ final class AppState: ObservableObject {
 
         if partType == "reasoning" || partType == "text" {
             upsertMessage(sessionID: sessionID, messageID: messageID, role: role, part: TranscriptMessagePart(id: partID, type: partType, text: text), streaming: streaming, isDelta: event.textDelta != nil)
+        } else if partType == "tool_call" {
+            let name = event.properties["part"]?.objectValue?["toolCall"]?.objectValue?["name"]?.stringValue ?? "tool"
+            upsertMessage(sessionID: sessionID, messageID: messageID, role: role, part: TranscriptMessagePart(id: partID, type: partType, text: name), streaming: streaming, isDelta: false)
+            let tool = event.properties["part"]?.objectValue?["tool"]?.stringValue ?? name
+            let state = event.properties["part"]?.objectValue?["state"]?.objectValue?["status"]?.stringValue ?? "running"
+            appendActivity(kind: .tool, title: tool, detail: messageID, state: state)
+        } else if partType == "tool_result" {
+            let output = event.properties["part"]?.objectValue?["toolResult"]?.objectValue?["text"]?.stringValue ?? "No output"
+            upsertMessage(sessionID: sessionID, messageID: messageID, role: role, part: TranscriptMessagePart(id: partID, type: partType, text: output), streaming: streaming, isDelta: false)
         } else if partType == "tool" {
             let tool = event.properties["part"]?.objectValue?["tool"]?.stringValue ?? "Tool"
             let state = event.properties["part"]?.objectValue?["state"]?.objectValue?["status"]?.stringValue ?? "running"

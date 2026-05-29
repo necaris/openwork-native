@@ -66,7 +66,14 @@ struct TranscriptMessage: Identifiable, Equatable, Sendable {
     var errorMessage: String?
 
     var content: String {
-        parts.filter { $0.type == "text" }.map(\.text).joined(separator: "\n")
+        parts.filter { $0.type == "text" || $0.type == "tool_call" || $0.type == "tool_result" }.map { part in
+            if part.type == "tool_call" {
+                return "\n> **Tool Call:** `\(part.text.split(separator: "\n").first ?? "unknown")`\n"
+            } else if part.type == "tool_result" {
+                return "\n<details>\n<summary>Tool Result</summary>\n\n```\n\(part.text)\n```\n</details>\n"
+            }
+            return part.text
+        }.joined(separator: "\n")
     }
 
     var thinking: String? {
