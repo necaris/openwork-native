@@ -75,6 +75,13 @@ final class AppState: ObservableObject {
         ]
         Task { await loadChangedFiles() }
         Task { await loadInventory() }
+        Task {
+            // Delay auto-start slightly to allow UI to render first
+            try? await Task.sleep(nanoseconds: 500_000_000)
+            await MainActor.run {
+                self.startRuntime()
+            }
+        }
     }
 
     private func checkOpenCodeAvailability() {
@@ -107,7 +114,7 @@ final class AppState: ObservableObject {
         openWorkspace(at: url)
     }
 
-    func openWorkspace(at url: URL) {
+    func openWorkspace(at url: URL, autoStart: Bool = true) {
         AppLog.state.log("openWorkspace path=\(url.path, privacy: .public)")
         stopRuntime()
         let workspace = Workspace(path: url.path)
@@ -135,6 +142,10 @@ final class AppState: ObservableObject {
         ]
         Task { await loadChangedFiles() }
         Task { await loadInventory() }
+        
+        if autoStart {
+            startRuntime()
+        }
     }
 
     func startRuntime() {
