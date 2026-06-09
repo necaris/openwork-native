@@ -105,7 +105,7 @@ Keychain entry for API keys stays out of scope unless option 1 is chosen.
 - [x] Per-block "copy code" on fenced code in markdown.
 - [ ] Retry last assistant turn; edit-and-resend user message.
 - [ ] Update the current running step in place instead of appending.
-- [~] Group activity by session; cap history length. _History is capped at 80
+- [~] Group activity by session; cap history length. _History is capped at 100
       items; grouping remains._
 - [x] Collapse/expand verbose tool calls.
 - [ ] Keyboard shortcuts: new session, switch session, focus composer, stop.

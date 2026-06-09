@@ -36,7 +36,7 @@ final class AppState: ObservableObject {
     private let processManager = OpenCodeProcessManager()
     private let gitStatusService = GitStatusService()
     private let inventoryService = WorkspaceInventoryService()
-    private let activityLimit = 80
+    private let activityLimit = 100
     var client: OpenCodeClient?
     private var eventTask: Task<Void, Never>?
     private var sessionMessageTask: Task<Void, Never>?
