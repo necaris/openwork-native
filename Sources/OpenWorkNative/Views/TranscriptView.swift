@@ -38,12 +38,18 @@ struct TranscriptView: View {
             if !matchingCommands.isEmpty {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 8) {
-                        ForEach(matchingCommands.prefix(8)) { command in
-                            Button(command.slashCommand ?? command.name) {
-                                insertCommand(command)
+                        ForEach(matchingCommands.prefix(8)) { item in
+                            Button {
+                                insertCommand(item)
+                            } label: {
+                                Label(
+                                    item.slashCommand ?? item.name,
+                                    systemImage: item.kind == .skill ? "sparkles" : "terminal"
+                                )
                             }
                             .buttonStyle(.bordered)
                             .controlSize(.small)
+                            .tint(item.kind == .skill ? .purple : nil)
                         }
                     }
                     .padding(.horizontal)
@@ -65,17 +71,30 @@ struct TranscriptView: View {
                     }
 
                 Menu {
-                    ForEach(commandItems) { command in
-                        Button(command.slashCommand ?? command.name) {
-                            insertCommand(command)
+                    if !commandItems.isEmpty {
+                        Section("Commands") {
+                            ForEach(commandItems) { command in
+                                Button(command.slashCommand ?? command.name) {
+                                    insertCommand(command)
+                                }
+                            }
+                        }
+                    }
+                    if !skillItems.isEmpty {
+                        Section("Skills") {
+                            ForEach(skillItems) { skill in
+                                Button(skill.slashCommand ?? skill.name) {
+                                    insertCommand(skill)
+                                }
+                            }
                         }
                     }
                 } label: {
                     Image(systemName: "terminal")
                 }
                 .keyboardShortcut("/", modifiers: .command)
-                .help("Commands")
-                .disabled(commandItems.isEmpty)
+                .help("Commands and skills")
+                .disabled(commandItems.isEmpty && skillItems.isEmpty)
 
                 Button("Send") {
                     send()
@@ -102,12 +121,16 @@ struct TranscriptView: View {
         appState.inventory.filter { $0.kind == .command }
     }
 
+    private var skillItems: [WorkspaceInventoryItem] {
+        appState.inventory.filter { $0.kind == .skill }
+    }
+
     private var matchingCommands: [WorkspaceInventoryItem] {
         let trimmed = prompt.trimmingCharacters(in: .whitespacesAndNewlines)
         guard trimmed.hasPrefix("/") else { return [] }
         let query = String(trimmed.dropFirst()).lowercased()
-        return commandItems.filter { command in
-            query.isEmpty || command.name.lowercased().contains(query)
+        return (commandItems + skillItems).filter { item in
+            query.isEmpty || item.name.lowercased().contains(query)
         }
     }
 

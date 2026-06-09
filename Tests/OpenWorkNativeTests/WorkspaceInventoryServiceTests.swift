@@ -38,12 +38,14 @@ import Testing
     #expect(inventory.contains(WorkspaceInventoryItem(kind: .plugin, name: "opencode-wakatime", path: "opencode.json", detail: "plugin[0]")))
 }
 
-@Test func inventoryCommandItemsExposeSlashCommands() {
+@Test func inventoryCommandAndSkillItemsExposeSlashCommands() {
     let command = WorkspaceInventoryItem(kind: .command, name: "review", path: ".agents/commands/review.md", detail: ".agents/commands")
     let skill = WorkspaceInventoryItem(kind: .skill, name: "review", path: ".agents/skills/review", detail: ".agents/skills")
+    let plugin = WorkspaceInventoryItem(kind: .plugin, name: "review", path: ".opencode/plugins/review", detail: ".opencode/plugins")
 
     #expect(command.slashCommand == "/review")
-    #expect(skill.slashCommand == nil)
+    #expect(skill.slashCommand == "/review")
+    #expect(plugin.slashCommand == nil)
 }
 
 private func makeTemporaryDirectory() throws -> URL {

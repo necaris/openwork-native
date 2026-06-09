@@ -136,7 +136,7 @@ struct WorkspaceInventoryItem: Identifiable, Equatable, Sendable {
     var detail: String
 
     var slashCommand: String? {
-        guard kind == .command else { return nil }
+        guard kind == .command || kind == .skill else { return nil }
         return "/\(name)"
     }
 }
