@@ -21,6 +21,50 @@ swift test --enable-swift-testing \
   -Xlinker -rpath -Xlinker /Library/Developer/CommandLineTools/Library/Developer/usr/lib
 ```
 
+## coverage
+
+Run tests with SwiftPM code coverage enabled, then print app-source coverage.
+
+```bash
+set -euo pipefail
+
+swift test --enable-code-coverage --enable-swift-testing \
+  -Xswiftc -F -Xswiftc /Library/Developer/CommandLineTools/Library/Developer/Frameworks \
+  -Xlinker -F -Xlinker /Library/Developer/CommandLineTools/Library/Developer/Frameworks \
+  -Xlinker -framework -Xlinker Testing \
+  -Xlinker -rpath -Xlinker /Library/Developer/CommandLineTools/Library/Developer/Frameworks \
+  -Xlinker -rpath -Xlinker /Library/Developer/CommandLineTools/Library/Developer/usr/lib
+
+xcrun llvm-cov report \
+  .build/arm64-apple-macosx/debug/OpenWorkNativePackageTests.xctest/Contents/MacOS/OpenWorkNativePackageTests \
+  -instr-profile .build/arm64-apple-macosx/debug/codecov/default.profdata \
+  -ignore-filename-regex='/.build/|/Tests/'
+
+printf '\nCoverage JSON: '
+swift test --show-codecov-path
+```
+
+## coverage-core
+
+Run tests with SwiftPM code coverage enabled, then print coverage excluding
+SwiftUI views and app entry-point code.
+
+```bash
+set -euo pipefail
+
+swift test --enable-code-coverage --enable-swift-testing \
+  -Xswiftc -F -Xswiftc /Library/Developer/CommandLineTools/Library/Developer/Frameworks \
+  -Xlinker -F -Xlinker /Library/Developer/CommandLineTools/Library/Developer/Frameworks \
+  -Xlinker -framework -Xlinker Testing \
+  -Xlinker -rpath -Xlinker /Library/Developer/CommandLineTools/Library/Developer/Frameworks \
+  -Xlinker -rpath -Xlinker /Library/Developer/CommandLineTools/Library/Developer/usr/lib
+
+xcrun llvm-cov report \
+  .build/arm64-apple-macosx/debug/OpenWorkNativePackageTests.xctest/Contents/MacOS/OpenWorkNativePackageTests \
+  -instr-profile .build/arm64-apple-macosx/debug/codecov/default.profdata \
+  -ignore-filename-regex='/.build/|/Tests/|/Views/|OpenWorkNativeApp.swift'
+```
+
 ## lint
 
 Run standard Swift lint tools. Requires `swiftformat` and `swiftlint` on `PATH`.
