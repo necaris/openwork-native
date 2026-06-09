@@ -7,13 +7,12 @@ import Foundation
     // It mocks a stream of incoming bytes that simulate SSE events delivered character by character,
     // and tests that empty lines are yielded properly.
     
-    // Simulate server delivering an SSE stream over multiple chunks/bytes
+    // Simulate server delivering an SSE stream over multiple chunks/bytes.
     let streamText = """
     data: {"type": "session.status"}
-    
+
     data: {"type": "message.updated"}
-    
-    """
+    """.appending("\n\n")
     // To properly test the byte logic from AppState:
     let bytes = MockBytesAsyncSequence(chunks: [streamText])
     
@@ -39,8 +38,8 @@ import Foundation
         }
     }
     
-    // We expect two empty lines triggered, thus two events emitted.
-    #expect(emittedEvents.count == 2)
-    #expect(emittedEvents[0] == ["data: {\"type\": \"session.status\"}"])
-    #expect(emittedEvents[1] == ["data: {\"type\": \"message.updated\"}"])
+    #expect(emittedEvents == [
+        ["data: {\"type\": \"session.status\"}"],
+        ["data: {\"type\": \"message.updated\"}"]
+    ])
 }
