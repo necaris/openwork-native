@@ -245,6 +245,9 @@ private struct MessageBubble: View {
 
             Markdown(message.content)
                 .markdownTheme(message.role == .user ? .basic : .gitHub)
+                .markdownBlockStyle(\.codeBlock) { configuration in
+                    CopyableCodeBlock(configuration: configuration)
+                }
                 .textSelection(.enabled)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .lineLimit(nil)
@@ -283,5 +286,72 @@ private struct MessageBubble: View {
         if let cost = message.cost { parts.append(CountFormatter.usd(cost)) }
         if let latency = message.latency, latency > 0 { parts.append(CountFormatter.latency(latency)) }
         return parts.isEmpty ? nil : parts.joined(separator: " · ")
+    }
+}
+
+private struct CopyableCodeBlock: View {
+    let configuration: CodeBlockConfiguration
+    @State private var copied = false
+
+    var body: some View {
+        VStack(spacing: 0) {
+            HStack(spacing: 8) {
+                Text(languageLabel)
+                    .font(.caption.monospaced())
+                    .fontWeight(.semibold)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                Spacer(minLength: 12)
+                Button {
+                    copyCode()
+                } label: {
+                    Image(systemName: copied ? "checkmark" : "doc.on.doc")
+                        .frame(width: 16, height: 16)
+                }
+                .buttonStyle(.borderless)
+                .help(copied ? "Copied" : "Copy code")
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+            .background(Color(nsColor: .controlBackgroundColor))
+
+            Divider()
+
+            ScrollView(.horizontal) {
+                configuration.label
+                    .fixedSize(horizontal: false, vertical: true)
+                    .relativeLineSpacing(.em(0.225))
+                    .markdownTextStyle {
+                        FontFamilyVariant(.monospaced)
+                        FontSize(.em(0.85))
+                    }
+                    .padding(12)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
+        .background(Color(nsColor: .textBackgroundColor))
+        .clipShape(RoundedRectangle(cornerRadius: 6))
+        .overlay {
+            RoundedRectangle(cornerRadius: 6)
+                .stroke(Color(nsColor: .separatorColor), lineWidth: 0.5)
+        }
+        .markdownMargin(top: 0, bottom: 12)
+    }
+
+    private var languageLabel: String {
+        guard let language = configuration.language?.trimmingCharacters(in: .whitespacesAndNewlines), !language.isEmpty else {
+            return "plain text"
+        }
+        return language
+    }
+
+    private func copyCode() {
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(configuration.content, forType: .string)
+        copied = true
+        Task { @MainActor in
+            try? await Task.sleep(for: .seconds(1.4))
+            copied = false
+        }
     }
 }

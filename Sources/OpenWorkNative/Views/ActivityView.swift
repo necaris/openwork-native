@@ -42,20 +42,7 @@ struct ActivityView: View {
 
             Section("Activity") {
                 ForEach(appState.activity) { item in
-                    VStack(alignment: .leading, spacing: 4) {
-                        HStack {
-                            Text(item.title)
-                                .font(.headline)
-                            Spacer()
-                            Text(item.state)
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                        Text(item.detail)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .textSelection(.enabled)
-                    }
+                    ActivityRow(item: item)
                 }
             }
 
@@ -94,5 +81,73 @@ struct ActivityView: View {
 
         }
         .navigationTitle("Activity")
+    }
+}
+
+private struct ActivityRow: View {
+    let item: ActivityItem
+    @State private var isExpanded = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 5) {
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                Image(systemName: item.kind.symbolName)
+                    .foregroundStyle(.secondary)
+                    .frame(width: 14)
+                Text(item.title)
+                    .font(.headline)
+                    .lineLimit(1)
+                Spacer(minLength: 8)
+                Text(item.state)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+
+            if isCollapsible {
+                DisclosureGroup(isExpanded: $isExpanded) {
+                    Text(item.detail)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .textSelection(.enabled)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.top, 2)
+                } label: {
+                    Text(summary)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(2)
+                }
+            } else {
+                Text(item.detail)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .textSelection(.enabled)
+                    .lineLimit(3)
+            }
+        }
+        .padding(.vertical, 2)
+    }
+
+    private var isCollapsible: Bool {
+        item.kind == .tool || item.detail.count > 180 || item.detail.contains("\n")
+    }
+
+    private var summary: String {
+        let firstLine = item.detail.split(whereSeparator: \.isNewline).first.map(String.init) ?? item.detail
+        guard firstLine.count > 120 else { return firstLine }
+        return "\(firstLine.prefix(120))..."
+    }
+}
+
+private extension ActivityItem.Kind {
+    var symbolName: String {
+        switch self {
+        case .step: "checklist"
+        case .tool: "wrench.and.screwdriver"
+        case .todo: "checkmark.square"
+        case .file: "doc.text"
+        case .runtime: "cpu"
+        }
     }
 }

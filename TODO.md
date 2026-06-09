@@ -102,11 +102,12 @@ Keychain entry for API keys stays out of scope unless option 1 is chosen.
 - [x] Enter sends the current chat message; Shift+Return inserts newline (`#57ad8b6`).
 - [x] Render conversation blocks in Markdown via MarkdownUI (`#33ef4a3`).
 - [x] Reconstruct multi-part messages properly and handle connection drops (`#30b1558`).
-- [ ] Per-block "copy code" on fenced code in markdown.
+- [x] Per-block "copy code" on fenced code in markdown.
 - [ ] Retry last assistant turn; edit-and-resend user message.
 - [ ] Update the current running step in place instead of appending.
-- [ ] Group activity by session; cap history length.
-- [ ] Collapse/expand verbose tool calls.
+- [~] Group activity by session; cap history length. _History is capped at 80
+      items; grouping remains._
+- [x] Collapse/expand verbose tool calls.
 - [ ] Keyboard shortcuts: new session, switch session, focus composer, stop.
 
 ### P1 — permission always-allow policy (`#535e7d9`, spec §5)

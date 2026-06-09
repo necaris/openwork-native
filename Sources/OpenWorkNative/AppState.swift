@@ -36,6 +36,7 @@ final class AppState: ObservableObject {
     private let processManager = OpenCodeProcessManager()
     private let gitStatusService = GitStatusService()
     private let inventoryService = WorkspaceInventoryService()
+    private let activityLimit = 80
     var client: OpenCodeClient?
     private var eventTask: Task<Void, Never>?
     private var sessionMessageTask: Task<Void, Never>?
@@ -510,6 +511,7 @@ final class AppState: ObservableObject {
         case "todo.updated":
             if let todos = event.todos {
                 activity.insert(contentsOf: todos, at: 0)
+                trimActivity()
             }
         case "file.edited", "file.watcher.updated", "session.diff":
             Task { await loadChangedFiles() }
@@ -774,6 +776,13 @@ final class AppState: ObservableObject {
             ActivityItem(id: UUID(), kind: kind, title: title, detail: detail, state: state),
             at: 0
         )
+        trimActivity()
+    }
+
+    private func trimActivity() {
+        if activity.count > activityLimit {
+            activity = Array(activity.prefix(activityLimit))
+        }
     }
 
     private func presentError(_ title: String, _ error: Error) {
