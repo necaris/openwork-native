@@ -1,9 +1,9 @@
 id: 51ec10d
 title: Show inventory of skills, commands, and MCPs in the left-hand sidebar
 status: open
-priority: medium
+priority: high
 created: 2026-05-28T16:31:39Z
-updated: 2026-05-28T16:31:39Z
+updated: 2026-06-09T19:03:42Z
 author: Rami Chowdhury
 assignee: Rami Chowdhury
 hash_source: content
