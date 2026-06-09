@@ -1,0 +1,11 @@
+id: 4858686
+title: Inventory sidebar: move full skill path out of the row into a tooltip
+status: open
+priority: medium
+created: 2026-06-09T23:55:17Z
+updated: 2026-06-09T23:55:17Z
+author: Rami Chowdhury
+assignee: Rami Chowdhury
+hash_source: content
+
+The left-hand inventory list shows the full filesystem path for each skill inline; the row only needs the name — move the path into a hover tooltip.
