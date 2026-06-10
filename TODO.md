@@ -133,7 +133,11 @@ OpenCode accepts "always" but does not persist per-workspace rules itself.
 - [x] Surface detected commands as composer slash-command insertions.
 - [x] Show inventory of skills, commands, and MCPs in the left-hand sidebar (`#51ec10d`).
 - [x] Ensure the left-hand sidebar contents expand to fill the width (`#58c956b`).
-- [ ] Show live MCP connection/status information (`#15b1696`).
+- [x] Show live MCP connection/status information (`#15b1696`).
+- [x] Load inventory from the server's resolved view (`GET /skill`, `/command`,
+      `/mcp`, `/config`) so overlapping config files never duplicate entries
+      (`#996e90c`); the filesystem scan is only a pre-runtime fallback.
+      See AGENTS.md: prefer OpenCode APIs over reading config files ourselves.
 - [x] No import/edit/install in MVP.
 
 ---

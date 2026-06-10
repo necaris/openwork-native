@@ -86,6 +86,83 @@ struct OpenCodeClient: Sendable {
         try await get(path: "/config")
     }
 
+    /// Builds the inventory from the server's resolved view (GET /skill, /command,
+    /// /mcp, /config) instead of re-reading config files, so overlapping config
+    /// sources never produce duplicate entries and MCP rows carry live status.
+    func loadInventory() async throws -> [WorkspaceInventoryItem] {
+        async let skillsRequest: [APISkill] = get(path: "/skill")
+        async let commandsRequest: [APICommand] = get(path: "/command")
+        async let mcpRequest: [String: APIMCPStatus] = get(path: "/mcp")
+        async let configRequest: OpenCodeConfig = get(path: "/config")
+        let (skills, commands, mcpStatuses, config) = try await (skillsRequest, commandsRequest, mcpRequest, configRequest)
+
+        var items: [WorkspaceInventoryItem] = []
+
+        items.append(contentsOf: skills.map { skill in
+            WorkspaceInventoryItem(
+                kind: .skill,
+                name: skill.name,
+                path: (skill.location?.hasPrefix("/") == true) ? skill.location! : "",
+                detail: skill.description ?? ""
+            )
+        })
+
+        // GET /command mirrors every skill as a command; keep only real commands
+        // so skills do not show up twice across sections.
+        items.append(contentsOf: commands.filter { ($0.source ?? "command") == "command" }.map { command in
+            WorkspaceInventoryItem(
+                kind: .command,
+                name: command.name,
+                path: "",
+                detail: command.description ?? ""
+            )
+        })
+
+        let configMCP = config.mcp ?? [:]
+        let mcpNames = Set(mcpStatuses.keys).union(configMCP.keys)
+        items.append(contentsOf: mcpNames.map { name in
+            WorkspaceInventoryItem(
+                kind: .mcp,
+                name: name,
+                path: "",
+                detail: Self.mcpDetail(configMCP[name]),
+                status: mcpStatuses[name]?.status,
+                statusDetail: mcpStatuses[name]?.error
+            )
+        })
+
+        items.append(contentsOf: (config.plugin ?? []).compactMap(\.stringValue).map { plugin in
+            WorkspaceInventoryItem(kind: .plugin, name: plugin, path: "", detail: "")
+        })
+
+        return items.sorted {
+            if $0.kind == $1.kind {
+                return $0.name.localizedStandardCompare($1.name) == .orderedAscending
+            }
+            return $0.kind.sortOrder < $1.kind.sortOrder
+        }
+    }
+
+    private static func mcpDetail(_ value: JSONValue?) -> String {
+        guard let object = value?.objectValue else { return "" }
+        var parts: [String] = []
+        if let type = object["type"]?.stringValue, !type.isEmpty {
+            parts.append("type: \(type)")
+        }
+        if let command = object["command"] {
+            let words = command.arrayValue?.compactMap(\.stringValue) ?? command.stringValue.map { [$0] } ?? []
+            if !words.isEmpty {
+                parts.append("command: \(words.joined(separator: " "))")
+            }
+        } else if let url = object["url"]?.stringValue {
+            parts.append("url: \(url)")
+        }
+        if object["enabled"] == .bool(false) {
+            parts.append("disabled")
+        }
+        return parts.joined(separator: " · ")
+    }
+
     func updateDefaultModel(_ modelID: String) async throws -> String? {
         // PATCH /config writes a workspace config.json that current OpenCode builds do not
         // reread through GET /config. The global config API updates the effective model.
@@ -283,6 +360,31 @@ private struct ModelPartInput: Encodable {
 
 struct OpenCodeConfig: Decodable, Equatable, Sendable {
     let model: String?
+    let mcp: [String: JSONValue]?
+    let plugin: [JSONValue]?
+
+    init(model: String?, mcp: [String: JSONValue]? = nil, plugin: [JSONValue]? = nil) {
+        self.model = model
+        self.mcp = mcp
+        self.plugin = plugin
+    }
+}
+
+struct APISkill: Decodable, Equatable, Sendable {
+    let name: String
+    let description: String?
+    let location: String?
+}
+
+struct APICommand: Decodable, Equatable, Sendable {
+    let name: String
+    let description: String?
+    let source: String?
+}
+
+struct APIMCPStatus: Decodable, Equatable, Sendable {
+    let status: String
+    let error: String?
 }
 
 private struct UpdateConfigBody: Encodable {

@@ -417,6 +417,7 @@ final class AppState: ObservableObject {
             await loadSessions()
             await loadChangedFiles()
             await loadProviders()
+            await loadInventory()
         }
     }
 
@@ -467,6 +468,12 @@ final class AppState: ObservableObject {
     private func loadInventory() async {
         guard let currentWorkspace else {
             inventory = []
+            return
+        }
+        // Prefer the server's resolved inventory (deduped, with live MCP status);
+        // fall back to scanning the workspace before the runtime is up.
+        if let client, let items = try? await client.loadInventory() {
+            inventory = items
             return
         }
         inventory = await inventoryService.loadInventory(in: currentWorkspace)

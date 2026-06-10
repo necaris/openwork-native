@@ -306,6 +306,83 @@ import Testing
     }
 }
 
+@Test func loadInventoryUsesResolvedServerViewWithoutDuplicates() async throws {
+    let networking = RoutedMockNetworking(routes: [
+        "/skill": #"""
+        [
+          { "name": "review", "description": "Review code", "location": "/Users/me/.agents/skills/review" },
+          { "name": "plan", "description": "Plan work", "location": "<built-in>" }
+        ]
+        """#,
+        "/command": #"""
+        [
+          { "name": "init", "description": "Set up AGENTS.md", "source": "command" },
+          { "name": "review", "description": "Mirrored skill", "source": "skill" }
+        ]
+        """#,
+        "/mcp": #"""
+        {
+          "orbit": { "status": "connected" },
+          "browser": { "status": "failed", "error": "Executable not found" }
+        }
+        """#,
+        "/config": #"""
+        {
+          "model": "anthropic/claude-sonnet-4-6",
+          "mcp": {
+            "orbit": { "type": "local", "command": ["uv", "run", "orbit"], "enabled": true },
+            "browser": { "type": "local", "command": ["npx", "chrome-devtools-mcp"] }
+          },
+          "plugin": ["opencode-scheduler"]
+        }
+        """#
+    ])
+    let client = OpenCodeClient(
+        baseURL: URL(string: "http://127.0.0.1:4096")!,
+        directory: "/tmp/workspace",
+        networking: networking
+    )
+
+    let inventory = try await client.loadInventory()
+
+    let skills = inventory.filter { $0.kind == .skill }
+    let commands = inventory.filter { $0.kind == .command }
+    let mcps = inventory.filter { $0.kind == .mcp }
+    let plugins = inventory.filter { $0.kind == .plugin }
+
+    #expect(skills.map(\.name) == ["plan", "review"])
+    #expect(skills.last?.path == "/Users/me/.agents/skills/review")
+    #expect(skills.first?.path.isEmpty == true)
+
+    // Skill-sourced command mirrors are dropped so skills appear only once.
+    #expect(commands.map(\.name) == ["init"])
+
+    #expect(mcps.map(\.name) == ["browser", "orbit"])
+    #expect(mcps.first?.status == "failed")
+    #expect(mcps.first?.statusDetail == "Executable not found")
+    #expect(mcps.first?.detail.contains("command: npx chrome-devtools-mcp") == true)
+    #expect(mcps.last?.status == "connected")
+
+    #expect(plugins.map(\.name) == ["opencode-scheduler"])
+}
+
+private final class RoutedMockNetworking: OpenCodeNetworking, @unchecked Sendable {
+    let routes: [String: String]
+
+    init(routes: [String: String]) {
+        self.routes = routes
+    }
+
+    func data(for request: URLRequest) async throws -> (Data, URLResponse) {
+        let path = request.url?.path ?? ""
+        guard let body = routes[path] else {
+            throw OpenCodeClientError.serverError(404, "no route for \(path)")
+        }
+        let response = HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!
+        return (Data(body.utf8), response)
+    }
+}
+
 private func makeClient(networking: MockNetworking) -> OpenCodeClient {
     OpenCodeClient(
         baseURL: URL(string: "http://127.0.0.1:4096")!,

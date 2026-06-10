@@ -32,7 +32,7 @@ struct WorkspaceInventoryService: Sendable {
             if $0.kind.rawValue == $1.kind.rawValue {
                 return $0.name.localizedStandardCompare($1.name) == .orderedAscending
             }
-            return kindOrder($0.kind) < kindOrder($1.kind)
+            return $0.kind.sortOrder < $1.kind.sortOrder
         }
     }
 
@@ -318,12 +318,4 @@ struct WorkspaceInventoryService: Sendable {
         return String(path.dropFirst(rootPath.count + 1))
     }
 
-    private func kindOrder(_ kind: WorkspaceInventoryKind) -> Int {
-        switch kind {
-        case .skill: 0
-        case .command: 1
-        case .plugin: 2
-        case .mcp: 3
-        }
-    }
 }

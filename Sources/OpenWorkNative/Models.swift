@@ -132,6 +132,15 @@ enum WorkspaceInventoryKind: String, CaseIterable, Sendable {
     case command = "Commands"
     case plugin = "Plugins"
     case mcp = "MCP"
+
+    var sortOrder: Int {
+        switch self {
+        case .skill: 0
+        case .command: 1
+        case .plugin: 2
+        case .mcp: 3
+        }
+    }
 }
 
 struct WorkspaceInventoryItem: Identifiable, Equatable, Sendable {
@@ -140,6 +149,8 @@ struct WorkspaceInventoryItem: Identifiable, Equatable, Sendable {
     var name: String
     var path: String
     var detail: String
+    var status: String? = nil
+    var statusDetail: String? = nil
 
     var slashCommand: String? {
         guard kind == .command || kind == .skill else { return nil }
