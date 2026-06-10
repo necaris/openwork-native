@@ -9,3 +9,6 @@ assignee: Rami Chowdhury
 hash_source: content
 
 UI polish: clickable links in rendered Markdown (transcript bubbles) should visibly react on hover — e.g. underline, color shift, and/or pointing-hand cursor — so links are discoverable as clickable.
+
+## Comments
+[2026-06-10T00:28:56Z] Rami Chowdhury: Implementation note: transcript rendering uses the MarkdownUI package, so this is likely a Theme customization (link text style + hover modifier/cursor) rather than custom rendering.
