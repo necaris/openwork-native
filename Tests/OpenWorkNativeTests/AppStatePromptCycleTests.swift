@@ -131,6 +131,40 @@ import Testing
     #expect(state.sessions[0].messages.allSatisfy { !$0.isStreaming })
 }
 
+@MainActor
+@Test func toolPartActivityDetailShowsActionTaken() {
+    let state = makeState()
+    seedSession(state, sessionID: "ses_1")
+    state.apply(messageUpdated(sessionID: "ses_1", messageID: "msg_a", role: "assistant"))
+
+    // Tool part with a human-readable title: title wins.
+    state.apply(toolPartUpdated(
+        sessionID: "ses_1", messageID: "msg_a", partID: "prt_t1",
+        tool: "bash", status: "running",
+        stateJSON: #"{"status":"running","title":"swift test","input":{"command":"swift test"}}"#
+    ))
+    #expect(state.activity.first?.kind == .tool)
+    #expect(state.activity.first?.title == "bash")
+    #expect(state.activity.first?.detail == "swift test")
+
+    // No title: fall back to rendering the input.
+    state.apply(toolPartUpdated(
+        sessionID: "ses_1", messageID: "msg_a", partID: "prt_t2",
+        tool: "read", status: "completed",
+        stateJSON: #"{"status":"completed","input":{"filePath":"/tmp/a.txt"}}"#
+    ))
+    #expect(state.activity.first?.title == "read")
+    #expect(state.activity.first?.detail == "filePath: /tmp/a.txt")
+
+    // No title or input: keep the old message-ID fallback.
+    state.apply(toolPartUpdated(
+        sessionID: "ses_1", messageID: "msg_a", partID: "prt_t3",
+        tool: "task", status: "pending",
+        stateJSON: #"{"status":"pending"}"#
+    ))
+    #expect(state.activity.first?.detail == "msg_a")
+}
+
 // MARK: - Helpers
 
 @MainActor
@@ -215,6 +249,25 @@ private func messagePartDelta(sessionID: String, messageID: String, partID: Stri
         "partID": "\#(partID)",
         "field": "text",
         "delta": "\#(delta)"
+      }
+    }
+    """#)
+}
+
+private func toolPartUpdated(sessionID: String, messageID: String, partID: String, tool: String, status: String, stateJSON: String) -> OpenCodeEvent {
+    decodeEvent(#"""
+    {
+      "type": "message.part.updated",
+      "properties": {
+        "sessionID": "\#(sessionID)",
+        "part": {
+          "id": "\#(partID)",
+          "type": "tool",
+          "tool": "\#(tool)",
+          "messageID": "\#(messageID)",
+          "sessionID": "\#(sessionID)",
+          "state": \#(stateJSON)
+        }
       }
     }
     """#)

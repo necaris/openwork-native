@@ -103,6 +103,11 @@ private struct ActivityRow: View {
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
             }
+            .contentShape(Rectangle())
+            .onTapGesture {
+                guard isCollapsible else { return }
+                withAnimation { isExpanded.toggle() }
+            }
 
             if isCollapsible {
                 DisclosureGroup(isExpanded: $isExpanded) {

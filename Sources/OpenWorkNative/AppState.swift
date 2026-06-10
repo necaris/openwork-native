@@ -583,15 +583,34 @@ final class AppState: ObservableObject {
             upsertMessage(sessionID: sessionID, messageID: messageID, role: role, part: TranscriptMessagePart(id: partID, type: partType, text: name), streaming: streaming, isDelta: false)
             let tool = event.properties["part"]?.objectValue?["tool"]?.stringValue ?? name
             let state = event.properties["part"]?.objectValue?["state"]?.objectValue?["status"]?.stringValue ?? "running"
-            appendActivity(kind: .tool, title: tool, detail: messageID, state: state)
+            appendActivity(kind: .tool, title: tool, detail: toolActionDetail(event, fallback: messageID), state: state)
         } else if partType == "tool_result" {
             let output = event.properties["part"]?.objectValue?["toolResult"]?.objectValue?["text"]?.stringValue ?? "No output"
             upsertMessage(sessionID: sessionID, messageID: messageID, role: role, part: TranscriptMessagePart(id: partID, type: partType, text: output), streaming: streaming, isDelta: false)
         } else if partType == "tool" {
             let tool = event.properties["part"]?.objectValue?["tool"]?.stringValue ?? "Tool"
             let state = event.properties["part"]?.objectValue?["state"]?.objectValue?["status"]?.stringValue ?? "running"
-            appendActivity(kind: .tool, title: tool, detail: messageID, state: state)
+            appendActivity(kind: .tool, title: tool, detail: toolActionDetail(event, fallback: messageID), state: state)
         }
+    }
+
+    // The action a tool row describes: OpenCode's human-readable state.title when
+    // present, else the tool's input/arguments, else the message ID as before.
+    private func toolActionDetail(_ event: OpenCodeEvent, fallback: String) -> String {
+        let part = event.properties["part"]?.objectValue
+        let state = part?["state"]?.objectValue
+        if let title = state?["title"]?.stringValue, !title.isEmpty {
+            return title
+        }
+        if let input = state?["input"] {
+            let rendered = input.displayValue
+            if !rendered.isEmpty { return rendered }
+        }
+        if let arguments = part?["toolCall"]?.objectValue?["arguments"] {
+            let rendered = arguments.displayValue
+            if !rendered.isEmpty { return rendered }
+        }
+        return fallback
     }
 
     private func applySessionUpdated(_ event: OpenCodeEvent) {
