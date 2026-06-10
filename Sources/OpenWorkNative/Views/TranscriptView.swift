@@ -439,6 +439,10 @@ private struct MessageBubble: View {
 
             Markdown(message.content)
                 .markdownTheme(message.role == .user ? .basic : .gitHub)
+                .markdownTextStyle(\.link) {
+                    ForegroundColor(.accentColor)
+                    UnderlineStyle(.single)
+                }
                 .markdownBlockStyle(\.codeBlock) { configuration in
                     CopyableCodeBlock(configuration: configuration)
                 }
