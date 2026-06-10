@@ -1,0 +1,11 @@
+id: 15b1696
+title: Show MCP runtime status in inventory
+status: open
+priority: medium
+created: 2026-06-10T17:12:39Z
+updated: 2026-06-10T17:12:39Z
+author: Rami Chowdhury
+assignee: Rami Chowdhury
+hash_source: content
+
+Inventory currently shows configured MCP entries from OpenCode config, but not live connection/status information. Add runtime status when OpenCode exposes a stable API or by safely integrating `opencode mcp list`, and make the UI distinguish configured vs connected/failed MCP servers.
