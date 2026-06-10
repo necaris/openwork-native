@@ -10,3 +10,6 @@ hash_source: content
 relates_to: e4811fd
 
 Settings is read-only for provider/model config (resolution of e4811fd deferred this). Add a way to pick the model from the app — at minimum select the default model for a workspace/session from the models OpenCode reports, persisting via the OpenCode API or opencode.json write. Includes deciding the write path that e4811fd punted on.
+
+## Comments
+[2026-06-10T17:26:12Z] Rami Chowdhury: Implemented Settings default-model picker backed by OpenCode PATCH /config, loaded current model from GET /config, restricted choices to connected providers when available, updated docs/TODO, and verified with swift build --build-tests. Live API smoke confirmed PATCH /config writes model.
