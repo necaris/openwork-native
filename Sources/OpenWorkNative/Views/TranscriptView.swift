@@ -1,9 +1,11 @@
+import AppKit
 import MarkdownUI
 import SwiftUI
 
 struct TranscriptView: View {
     @EnvironmentObject private var appState: AppState
     @State private var prompt = ""
+    @State private var promptHeight = PromptTextView.minHeight
 
     var body: some View {
         VStack(spacing: 0) {
@@ -58,17 +60,12 @@ struct TranscriptView: View {
             }
 
             HStack(alignment: .bottom, spacing: 10) {
-                TextField("Ask OpenCode to work on this project", text: $prompt, axis: .vertical)
-                    .lineLimit(2...6)
-                    .textFieldStyle(.roundedBorder)
-                    .onKeyPress(.return) {
-                        if NSEvent.modifierFlags.contains(.shift) { return .ignored }
-                        if canSend {
-                            send()
-                            return .handled
-                        }
-                        return .ignored
-                    }
+                PromptTextView(
+                    text: $prompt,
+                    height: $promptHeight,
+                    placeholder: "Ask OpenCode to work on this project",
+                    onSubmit: sendFromKeyboard
+                )
 
                 Menu {
                     if !commandItems.isEmpty {
@@ -144,6 +141,161 @@ struct TranscriptView: View {
         guard !trimmed.isEmpty else { return }
         appState.sendPrompt(prompt)
         prompt = ""
+    }
+
+    private func sendFromKeyboard() -> Bool {
+        guard canSend else { return false }
+        send()
+        return true
+    }
+}
+
+private struct PromptTextView: View {
+    static let minHeight: CGFloat = 44
+    private static let maxHeight: CGFloat = 132
+
+    @Binding var text: String
+    @Binding var height: CGFloat
+    let placeholder: String
+    let onSubmit: () -> Bool
+
+    var body: some View {
+        ZStack(alignment: .topLeading) {
+            WrappingTextView(text: $text, height: $height, minHeight: Self.minHeight, maxHeight: Self.maxHeight, onSubmit: onSubmit)
+                .frame(height: height)
+
+            if text.isEmpty {
+                Text(placeholder)
+                    .foregroundStyle(.tertiary)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 10)
+                    .allowsHitTesting(false)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color(nsColor: .textBackgroundColor))
+        .clipShape(RoundedRectangle(cornerRadius: 6))
+        .overlay {
+            RoundedRectangle(cornerRadius: 6)
+                .stroke(Color(nsColor: .separatorColor), lineWidth: 0.75)
+        }
+    }
+}
+
+private struct WrappingTextView: NSViewRepresentable {
+    @Binding var text: String
+    @Binding var height: CGFloat
+    let minHeight: CGFloat
+    let maxHeight: CGFloat
+    let onSubmit: () -> Bool
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(self)
+    }
+
+    func makeNSView(context: Context) -> NSScrollView {
+        let scrollView = NSScrollView()
+        scrollView.drawsBackground = false
+        scrollView.hasHorizontalScroller = false
+        scrollView.hasVerticalScroller = false
+        scrollView.autohidesScrollers = true
+        scrollView.borderType = .noBorder
+
+        let textView = PromptNSTextView()
+        textView.delegate = context.coordinator
+        textView.onPlainReturn = { context.coordinator.submit() }
+        textView.string = text
+        textView.font = .preferredFont(forTextStyle: .body)
+        textView.textColor = .labelColor
+        textView.drawsBackground = false
+        textView.isRichText = false
+        textView.importsGraphics = false
+        textView.allowsUndo = true
+        textView.isHorizontallyResizable = false
+        textView.isVerticallyResizable = true
+        textView.autoresizingMask = [.width]
+        textView.textContainerInset = NSSize(width: 0, height: 8)
+        textView.textContainer?.lineFragmentPadding = 0
+        textView.textContainer?.widthTracksTextView = true
+        textView.textContainer?.heightTracksTextView = false
+        textView.maxSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
+        textView.minSize = NSSize(width: 0, height: minHeight)
+
+        scrollView.documentView = textView
+        context.coordinator.textView = textView
+        return scrollView
+    }
+
+    func updateNSView(_ scrollView: NSScrollView, context: Context) {
+        context.coordinator.parent = self
+        guard let textView = context.coordinator.textView else { return }
+        textView.onPlainReturn = { context.coordinator.submit() }
+
+        if textView.string != text {
+            textView.string = text
+        }
+
+        Task { @MainActor in
+            context.coordinator.recalculateHeight(in: scrollView)
+        }
+    }
+
+    @MainActor
+    final class Coordinator: NSObject, NSTextViewDelegate {
+        var parent: WrappingTextView
+        weak var textView: PromptNSTextView?
+
+        init(_ parent: WrappingTextView) {
+            self.parent = parent
+        }
+
+        func textDidChange(_ notification: Notification) {
+            guard let textView = notification.object as? NSTextView else { return }
+            parent.text = textView.string
+            if let scrollView = textView.enclosingScrollView {
+                recalculateHeight(in: scrollView)
+            }
+        }
+
+        func submit() -> Bool {
+            parent.onSubmit()
+        }
+
+        func recalculateHeight(in scrollView: NSScrollView) {
+            guard let textView, let textContainer = textView.textContainer, let layoutManager = textView.layoutManager else { return }
+
+            let availableWidth = max(scrollView.contentSize.width, scrollView.bounds.width, 1)
+            textView.frame.size.width = availableWidth
+            textContainer.containerSize = NSSize(width: availableWidth, height: CGFloat.greatestFiniteMagnitude)
+            layoutManager.ensureLayout(for: textContainer)
+
+            let usedHeight = layoutManager.usedRect(for: textContainer).height + textView.textContainerInset.height * 2
+            let nextHeight = min(max(ceil(usedHeight), parent.minHeight), parent.maxHeight)
+            scrollView.hasVerticalScroller = usedHeight > parent.maxHeight
+
+            if abs(parent.height - nextHeight) > 0.5 {
+                parent.height = nextHeight
+            }
+        }
+    }
+}
+
+private final class PromptNSTextView: NSTextView {
+    var onPlainReturn: (() -> Bool)?
+
+    override func keyDown(with event: NSEvent) {
+        let isReturn = event.keyCode == 36 || event.keyCode == 76
+        let isShiftReturn = event.modifierFlags.intersection(.deviceIndependentFlagsMask).contains(.shift)
+
+        if isReturn, !isShiftReturn {
+            if onPlainReturn?() == true {
+                return
+            }
+            NSSound.beep()
+            return
+        }
+
+        super.keyDown(with: event)
     }
 }
 
