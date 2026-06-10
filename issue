@@ -13,3 +13,4 @@ Settings is read-only for provider/model config (resolution of e4811fd deferred 
 
 ## Comments
 [2026-06-10T17:26:12Z] Rami Chowdhury: Implemented Settings default-model picker backed by OpenCode PATCH /config, loaded current model from GET /config, restricted choices to connected providers when available, updated docs/TODO, and verified with swift build --build-tests. Live API smoke confirmed PATCH /config writes model.
+[2026-06-10T17:50:07Z] Rami Chowdhury: User feedback: Settings model picker needs more work. PATCH path appears not to persist selection in-app; picker refreshes back to default. Also add a one-click main-pane button to open model selection settings.
