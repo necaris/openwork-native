@@ -1,0 +1,11 @@
+id: 70ac8ec
+title: Surface session errors prominently in chat pane
+status: open
+priority: medium
+created: 2026-06-10T17:58:48Z
+updated: 2026-06-10T17:58:48Z
+author: Rami Chowdhury
+assignee: Rami Chowdhury
+hash_source: content
+
+When a prompt is sent with an invalid model, OpenCode reports a session error, but the main transcript/chat pane does not make it obvious. Surface session/prompt errors inline in the transcript or a prominent chat-pane banner, include the error details when available, and ensure running state settles clearly.
