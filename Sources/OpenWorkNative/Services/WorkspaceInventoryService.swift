@@ -108,8 +108,12 @@ struct WorkspaceInventoryService: Sendable {
 
     private func configCandidates(root: URL) -> [URL] {
         [
+            root.appendingPathComponent("config.json"),
+            root.appendingPathComponent("config.jsonc"),
             root.appendingPathComponent("opencode.json"),
             root.appendingPathComponent("opencode.jsonc"),
+            root.appendingPathComponent(".opencode/config.json"),
+            root.appendingPathComponent(".opencode/config.jsonc"),
             root.appendingPathComponent(".opencode/opencode.json"),
             root.appendingPathComponent(".opencode/opencode.jsonc")
         ].filter { FileManager.default.fileExists(atPath: $0.path) }

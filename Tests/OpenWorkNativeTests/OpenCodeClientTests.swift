@@ -131,6 +131,22 @@ import Testing
     #expect(parts.first?["text"] as? String == "Fix the parser")
 }
 
+@Test func sendPromptCanIncludeSessionModelOverride() async throws {
+    let networking = MockNetworking(data: Data(), statusCode: 204)
+    let client = makeClient(networking: networking)
+
+    try await client.sendPrompt(
+        "Use this model",
+        sessionID: "ses_123",
+        model: SessionModel(modelID: "claude-3-5-sonnet", providerID: "anthropic")
+    )
+
+    let body = try #require(try networking.jsonBody())
+    let model = try #require(body["model"] as? [String: Any])
+    #expect(model["providerID"] as? String == "anthropic")
+    #expect(model["modelID"] as? String == "claude-3-5-sonnet")
+}
+
 @Test func abortPostsToSessionAbortRoute() async throws {
     let networking = MockNetworking(data: Data(), statusCode: 200)
     let client = makeClient(networking: networking)
@@ -201,12 +217,41 @@ import Testing
     let providers = try await client.loadProviders()
 
     #expect(providers.count == 2)
+    #expect(providers[0].id == "anthropic")
     #expect(providers[0].name == "Anthropic")
     #expect(providers[0].models == ["claude-3-5-sonnet", "claude-3-opus"])
+    #expect(providers[0].modelIDs == ["anthropic/claude-3-5-sonnet", "anthropic/claude-3-opus"])
     #expect(providers[0].selectedModel == "claude-3-5-sonnet")
     #expect(providers[0].authStatus == "Connected")
     #expect(providers[1].models == ["No configured model"])
+    #expect(providers[1].modelIDs == [])
     #expect(providers[1].authStatus == "Not connected")
+}
+
+@Test func loadConfigReadsCurrentDefaultModel() async throws {
+    let networking = MockNetworking(data: #"{"model":"anthropic/claude-3-5-sonnet"}"#.data(using: .utf8)!)
+    let client = makeClient(networking: networking)
+
+    let config = try await client.loadConfig()
+
+    #expect(config.model == "anthropic/claude-3-5-sonnet")
+    #expect(networking.lastRequest?.httpMethod == "GET")
+    #expect(networking.lastRequest?.url?.path == "/config")
+}
+
+@Test func updateDefaultModelPatchesConfigModel() async throws {
+    let networking = MockNetworking(data: #"{"model":"anthropic/claude-opus-4-1"}"#.data(using: .utf8)!)
+    let client = makeClient(networking: networking)
+
+    let selected = try await client.updateDefaultModel("anthropic/claude-opus-4-1")
+
+    #expect(selected == "anthropic/claude-opus-4-1")
+    #expect(networking.lastRequest?.httpMethod == "PATCH")
+    #expect(networking.lastRequest?.url?.path == "/global/config")
+    #expect(URLComponents(url: networking.lastRequest!.url!, resolvingAgainstBaseURL: false)?.queryItems == nil)
+    #expect(networking.lastRequest?.value(forHTTPHeaderField: "Content-Type") == "application/json")
+    let body = try #require(try networking.jsonBody())
+    #expect(body["model"] as? String == "anthropic/claude-opus-4-1")
 }
 
 @Test func makeEventRequestSetsSSEHeaders() {

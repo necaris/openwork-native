@@ -114,11 +114,17 @@ struct ChangedFile: Identifiable, Equatable, Sendable {
 }
 
 struct ModelProvider: Identifiable, Equatable, Sendable {
-    var id: String { name }
+    var id: String
     var name: String
     var models: [String]
     var selectedModel: String
     var authStatus: String
+
+    var modelIDs: [String] {
+        models
+            .filter { $0 != "No configured model" }
+            .map { "\(id)/\($0)" }
+    }
 }
 
 enum WorkspaceInventoryKind: String, CaseIterable, Sendable {

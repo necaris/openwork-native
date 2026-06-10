@@ -21,8 +21,8 @@ no cloud control plane, no hosted workers.
 - Surface plan steps, tool calls, and file-change activity as the agent works.
 - Prompt for permission when OpenCode requests a tool/path (allow once, deny,
   always allow).
-- Read model/provider configuration and surface OpenCode auth errors; write-side
-  configuration is still tracked as follow-up.
+- Read model/provider configuration, change the default model through OpenCode,
+  choose a per-session model from the transcript header, and surface OpenCode auth errors.
 - Reveal changed files in Finder or open them in your editor.
 
 ## Explicitly out of scope (MVP)

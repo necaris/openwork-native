@@ -50,8 +50,8 @@ struct OpenCodeClient: Sendable {
         return envelopes.map(\.appModel)
     }
 
-    func sendPrompt(_ prompt: String, sessionID: String) async throws {
-        let body = PromptBody(parts: [TextPartInput(text: prompt)])
+    func sendPrompt(_ prompt: String, sessionID: String, model: SessionModel? = nil) async throws {
+        let body = PromptBody(model: model.map(ModelPartInput.init), parts: [TextPartInput(text: prompt)])
         try await postNoBody(path: "/session/\(sessionID)/prompt_async", body: body, expectedStatus: 204)
     }
 
@@ -78,8 +78,19 @@ struct OpenCodeClient: Sendable {
             let models = provider.models.keys.sorted()
             let selected = response.default[provider.id] ?? models.first ?? "No configured model"
             let status = response.connected.contains(provider.id) ? "Connected" : "Not connected"
-            return ModelProvider(name: provider.name, models: models.isEmpty ? [selected] : models, selectedModel: selected, authStatus: status)
+            return ModelProvider(id: provider.id, name: provider.name, models: models.isEmpty ? [selected] : models, selectedModel: selected, authStatus: status)
         }
+    }
+
+    func loadConfig() async throws -> OpenCodeConfig {
+        try await get(path: "/config")
+    }
+
+    func updateDefaultModel(_ modelID: String) async throws -> String? {
+        // PATCH /config writes a workspace config.json that current OpenCode builds do not
+        // reread through GET /config. The global config API updates the effective model.
+        let config: OpenCodeConfig = try await patch(path: "/global/config", body: UpdateConfigBody(model: modelID), expectedStatus: 200, queryDirectory: false)
+        return config.model
     }
 
     func makeEventRequest() -> URLRequest {
@@ -108,6 +119,14 @@ struct OpenCodeClient: Sendable {
         request.httpBody = try JSONEncoder().encode(body)
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         _ = try await responseData(for: request, expectedStatus: expectedStatus)
+    }
+
+    private func patch<T: Encodable, U: Decodable>(path: String, body: T, expectedStatus: Int, queryDirectory: Bool = true) async throws -> U {
+        var request = request(path: path, method: "PATCH", queryDirectory: queryDirectory)
+        request.httpBody = try JSONEncoder().encode(body)
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        let data = try await responseData(for: request, expectedStatus: expectedStatus)
+        return try JSONDecoder().decode(U.self, from: data)
     }
 
     private func request(path: String, method: String, queryDirectory: Bool = true) -> URLRequest {
@@ -248,7 +267,26 @@ private struct PermissionReplyBody: Encodable {
 }
 
 private struct PromptBody: Encodable {
+    let model: ModelPartInput?
     let parts: [TextPartInput]
+}
+
+private struct ModelPartInput: Encodable {
+    let providerID: String
+    let modelID: String
+
+    init(_ model: SessionModel) {
+        providerID = model.providerID
+        modelID = model.modelID
+    }
+}
+
+struct OpenCodeConfig: Decodable, Equatable, Sendable {
+    let model: String?
+}
+
+private struct UpdateConfigBody: Encodable {
+    let model: String
 }
 
 private struct TextPartInput: Encodable {

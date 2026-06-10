@@ -350,11 +350,12 @@ private struct EmptyTranscriptView: View {
 }
 
 private struct SessionStatusHeader: View {
+    @EnvironmentObject private var appState: AppState
     let session: OpenCodeSession
 
     var body: some View {
         HStack(spacing: 12) {
-            if let model = session.model {
+            if let model = appState.displayModel(for: session) {
                 Text("\(model.modelID) · \(model.providerID)")
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -363,6 +364,24 @@ private struct SessionStatusHeader: View {
                     .font(.caption)
                     .foregroundStyle(.tertiary)
             }
+            Menu("Change Model") {
+                if appState.availableDefaultModelIDs.isEmpty {
+                    Text("No models loaded")
+                } else {
+                    ForEach(appState.availableDefaultModelIDs, id: \.self) { modelID in
+                        Button(modelID) {
+                            appState.selectSessionModel(modelID, for: session)
+                        }
+                    }
+                }
+                Divider()
+                Button("Open Model Settings…") {
+                    NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
+                }
+            }
+            .font(.caption)
+            .menuStyle(.button)
+            .help("Choose the model for prompts sent in this session")
             Spacer()
             Text("\(CountFormatter.abbreviated(session.tokens.total)) tokens")
                 .font(.caption)

@@ -89,13 +89,12 @@ Three issues filed, dependency-chained verify → plan → implement:
 
 ### P0 — model/provider write path (`#e4811fd`, spec §6)
 
-The Settings picker was replaced with explicit read-only configuration:
+Settings now supports in-app default model selection through OpenCode config APIs:
 
-- [x] Explicit read-only mode with "Reveal opencode.json in Finder" and
-      clear setup guidance in Settings + the auth-error banner.
-- [x] In-app default-model persistence to `opencode.json` is deferred.
-
-Keychain entry for API keys stays out of scope unless option 1 is chosen.
+- [x] Explicit config guidance with "Reveal OpenCode Config" and auth-error banner.
+- [x] In-app default-model persistence via OpenCode global config (`#300151e`).
+- [x] Per-session model override from the transcript header (`#300151e`).
+- [x] Provider API key entry remains out of scope.
 
 ### P1 — transcript/activity polish (`#20d3fd5`, spec §3 + §4)
 
@@ -130,7 +129,7 @@ OpenCode accepts "always" but does not persist per-workspace rules itself.
 ### P3 — read-only inventory (`#fbd6b56`, spec §8)
 
 - [x] Detect project-local and global OpenCode/compatible skills, commands, plugins.
-- [x] Parse and display MCP entries from OpenCode config (`opencode.json` / `opencode.jsonc`, including global config).
+- [x] Parse and display MCP entries from OpenCode config (`config.json`, `opencode.json`, and JSONC variants, including global config).
 - [x] Surface detected commands as composer slash-command insertions.
 - [x] Show inventory of skills, commands, and MCPs in the left-hand sidebar (`#51ec10d`).
 - [x] Ensure the left-hand sidebar contents expand to fill the width (`#58c956b`).

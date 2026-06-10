@@ -7,7 +7,7 @@ struct SettingsView: View {
         Form {
             Section("OpenCode Config") {
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("Model and MCP configuration are read-only in OpenWork. Edit OpenCode config outside the app, then restart OpenCode to reload providers and MCPs.")
+                    Text("Default model selection is persisted through OpenCode global config. MCP configuration remains read-only in OpenWork; edit OpenCode config outside the app, then restart OpenCode to reload MCPs.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
 
@@ -27,6 +27,31 @@ struct SettingsView: View {
                     }
                 }
                 .padding(.vertical, 4)
+            }
+
+            Section("Default Model") {
+                Picker("Model", selection: Binding(
+                    get: { appState.selectedDefaultModelID ?? "" },
+                    set: { appState.selectDefaultModel($0) }
+                )) {
+                    if appState.selectedDefaultModelID == nil {
+                        Text("No default model selected").tag("")
+                    }
+                    ForEach(appState.availableDefaultModelIDs, id: \.self) { modelID in
+                        Text(modelID).tag(modelID)
+                    }
+                }
+                .pickerStyle(.menu)
+                .disabled(appState.runtimeStatus != .running || appState.availableDefaultModelIDs.isEmpty || appState.isUpdatingDefaultModel)
+
+                if appState.isUpdatingDefaultModel {
+                    ProgressView("Updating default model…")
+                        .controlSize(.small)
+                } else if appState.runtimeStatus != .running {
+                    Text("Start OpenCode to load and change available models.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
             }
 
             Section("Model Providers") {

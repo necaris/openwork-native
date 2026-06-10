@@ -23,8 +23,12 @@ final class AppState: ObservableObject {
     @Published var inventory: [WorkspaceInventoryItem] = []
     @Published var showingManagementSheet = false
     @Published var isInventoryInspectorVisible = false
+    @Published var selectedDefaultModelID: String?
+    @Published var sessionModelOverrides: [OpenCodeSession.ID: SessionModel] = [:]
+    @Published var isUpdatingDefaultModel = false
     @Published var providers: [ModelProvider] = [
         ModelProvider(
+            id: "opencode",
             name: "OpenCode",
             models: ["Start OpenCode to load models"],
             selectedModel: "Start OpenCode to load models",
@@ -47,12 +51,26 @@ final class AppState: ObservableObject {
         return sessions.first { $0.id == selectedSessionID }
     }
 
+    var availableDefaultModelIDs: [String] {
+        let connected = providers.filter { $0.authStatus == "Connected" }.flatMap(\.modelIDs)
+        let source = connected.isEmpty ? providers.flatMap(\.modelIDs) : connected
+        return source.sorted()
+    }
+
+    func displayModel(for session: OpenCodeSession) -> SessionModel? {
+        sessionModelOverrides[session.id] ?? session.model
+    }
+
     var openCodeConfigURL: URL? {
         guard let currentWorkspace else { return nil }
         let root = URL(fileURLWithPath: currentWorkspace.path, isDirectory: true)
         let candidates = [
+            root.appendingPathComponent("config.json"),
+            root.appendingPathComponent("config.jsonc"),
             root.appendingPathComponent("opencode.json"),
             root.appendingPathComponent("opencode.jsonc"),
+            root.appendingPathComponent(".opencode/config.json"),
+            root.appendingPathComponent(".opencode/config.jsonc"),
             root.appendingPathComponent(".opencode/opencode.json"),
             root.appendingPathComponent(".opencode/opencode.jsonc")
         ]
@@ -140,6 +158,8 @@ final class AppState: ObservableObject {
         selectedSessionID = nil
         changedFiles = []
         inventory = []
+        selectedDefaultModelID = nil
+        sessionModelOverrides = [:]
         activity = [
             ActivityItem(
                 id: UUID(),
@@ -231,6 +251,7 @@ final class AppState: ObservableObject {
     func sendPrompt(_ prompt: String) {
         let trimmedPrompt = prompt.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedPrompt.isEmpty, let sessionID = selectedSessionID, let index = selectedSessionIndex else { return }
+        let modelOverride = sessionModelOverrides[sessionID]
         AppLog.state.log("sendPrompt session=\(sessionID, privacy: .public) chars=\(trimmedPrompt.count, privacy: .public)")
 
         sessions[index].isRunning = true
@@ -238,7 +259,7 @@ final class AppState: ObservableObject {
             TranscriptMessage(id: "local-user-\(UUID().uuidString)", role: .user, parts: [TranscriptMessagePart(id: "local-part", type: "text", text: trimmedPrompt)], date: Date(), isStreaming: false)
         )
         sessions[index].messages.append(
-            TranscriptMessage(id: "stream-\(UUID().uuidString)", role: .assistant, parts: [], date: Date(), isStreaming: true)
+            TranscriptMessage(id: "stream-\(UUID().uuidString)", role: .assistant, parts: [], date: Date(), isStreaming: true, model: modelOverride)
         )
         sessions[index].isRunning = true
         appendActivity(kind: .step, title: "Prompt sent", detail: trimmedPrompt, state: "Running")
@@ -246,7 +267,7 @@ final class AppState: ObservableObject {
         Task {
             do {
                 guard let client else { return }
-                try await client.sendPrompt(trimmedPrompt, sessionID: sessionID)
+                try await client.sendPrompt(trimmedPrompt, sessionID: sessionID, model: modelOverride)
             } catch {
                 markSession(sessionID, running: false)
                 presentError("Could not send prompt", error)
@@ -312,8 +333,48 @@ final class AppState: ObservableObject {
             NSWorkspace.shared.activateFileViewerSelecting([configURL])
         } else {
             NSWorkspace.shared.activateFileViewerSelecting([configURL.deletingLastPathComponent()])
-            errorBanner = "No OpenCode config found in this workspace. Create or edit opencode.jsonc outside OpenWork, then restart OpenCode."
+            errorBanner = "No OpenCode config found in this workspace. Create or edit config.json outside OpenWork, then restart OpenCode."
         }
+    }
+
+    func selectDefaultModel(_ modelID: String) {
+        guard !modelID.isEmpty, selectedDefaultModelID != modelID else { return }
+        guard let client else {
+            errorBanner = "Start OpenCode before changing the default model."
+            return
+        }
+
+        let previousModelID = selectedDefaultModelID
+        selectedDefaultModelID = modelID
+        isUpdatingDefaultModel = true
+        Task {
+            do {
+                selectedDefaultModelID = try await client.updateDefaultModel(modelID)
+                appendActivity(kind: .runtime, title: "Default model changed", detail: modelID, state: "Updated")
+                await loadProviders()
+            } catch {
+                selectedDefaultModelID = previousModelID
+                presentError("Could not update default model", error)
+            }
+            isUpdatingDefaultModel = false
+        }
+    }
+
+    func selectSessionModel(_ modelID: String, for session: OpenCodeSession) {
+        guard let model = sessionModel(from: modelID) else { return }
+        sessionModelOverrides[session.id] = model
+        if let index = sessions.firstIndex(where: { $0.id == session.id }) {
+            sessions[index].model = model
+        }
+        appendActivity(kind: .runtime, title: "Session model changed", detail: modelID, state: "Updated")
+    }
+
+    private func sessionModel(from modelID: String) -> SessionModel? {
+        guard let separator = modelID.firstIndex(of: "/") else { return nil }
+        let providerID = String(modelID[..<separator])
+        let modelID = String(modelID[modelID.index(after: separator)...])
+        guard !providerID.isEmpty, !modelID.isEmpty else { return nil }
+        return SessionModel(modelID: modelID, providerID: providerID)
     }
 
     private func waitForHealthAndRefresh(client: OpenCodeClient, baseURL: URL, workspaceName: String) async {
@@ -413,14 +474,19 @@ final class AppState: ObservableObject {
 
     private func loadProviders() async {
         do {
-            if let loadedProviders = try await client?.loadProviders(), !loadedProviders.isEmpty {
-                providers = loadedProviders
-                AppLog.state.log("Loaded \(loadedProviders.count, privacy: .public) provider(s)")
+            guard let client else { return }
+            async let loadedProviders = client.loadProviders()
+            async let config = client.loadConfig()
+            let (providersResult, configResult) = try await (loadedProviders, config)
+            if !providersResult.isEmpty {
+                providers = providersResult
+                AppLog.state.log("Loaded \(providersResult.count, privacy: .public) provider(s)")
             }
+            selectedDefaultModelID = configResult.model
         } catch {
             let message = error.localizedDescription
-            errorBanner = "OpenCode model/provider configuration needs attention. Edit opencode.json outside OpenWork, then restart OpenCode."
-            providers = [ModelProvider(name: "OpenCode", models: ["Unavailable"], selectedModel: "Unavailable", authStatus: message)]
+            errorBanner = "OpenCode model/provider configuration needs attention. Edit OpenCode config outside OpenWork, then restart OpenCode."
+            providers = [ModelProvider(id: "opencode", name: "OpenCode", models: ["Unavailable"], selectedModel: "Unavailable", authStatus: message)]
         }
     }
 
