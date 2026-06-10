@@ -1,0 +1,11 @@
+id: 300151e
+title: In-app model selection
+status: open
+priority: medium
+created: 2026-06-10T00:08:55Z
+updated: 2026-06-10T00:08:55Z
+author: Rami Chowdhury
+assignee: Rami Chowdhury
+hash_source: content
+
+Settings is read-only for provider/model config (resolution of e4811fd deferred this). Add a way to pick the model from the app — at minimum select the default model for a workspace/session from the models OpenCode reports, persisting via the OpenCode API or opencode.json write. Includes deciding the write path that e4811fd punted on.
