@@ -1,0 +1,11 @@
+id: 996e90c
+title: Inventory entries appear duplicated
+status: open
+priority: medium
+created: 2026-06-10T17:34:08Z
+updated: 2026-06-10T17:34:08Z
+author: Rami Chowdhury
+assignee: Rami Chowdhury
+hash_source: content
+
+Commands, skills, and MCP entries in the inventory sidebar appear duplicated. Investigate whether duplicates come from scanning overlapping local/global directories, multiple OpenCode config filenames/locations, non-unique SwiftUI IDs, or repeated inventory loads; dedupe display while preserving distinct sources where useful.
