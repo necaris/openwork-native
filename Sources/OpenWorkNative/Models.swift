@@ -129,7 +129,7 @@ enum WorkspaceInventoryKind: String, CaseIterable, Sendable {
 }
 
 struct WorkspaceInventoryItem: Identifiable, Equatable, Sendable {
-    var id: String { "\(kind.rawValue):\(path)" }
+    var id: String { "\(kind.rawValue):\(name):\(path)" }
     var kind: WorkspaceInventoryKind
     var name: String
     var path: String

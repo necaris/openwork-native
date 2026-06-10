@@ -7,12 +7,12 @@ struct SettingsView: View {
         Form {
             Section("OpenCode Config") {
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("Model selection is read-only in OpenWork. Edit opencode.json outside the app, then restart OpenCode to reload providers.")
+                    Text("Model and MCP configuration are read-only in OpenWork. Edit OpenCode config outside the app, then restart OpenCode to reload providers and MCPs.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
 
                     HStack {
-                        Text(appState.openCodeConfigURL?.path ?? "Choose a workspace to locate opencode.json")
+                        Text(appState.openCodeConfigURL?.path ?? "Choose a workspace to locate OpenCode config")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                             .lineLimit(2)
@@ -20,7 +20,7 @@ struct SettingsView: View {
 
                         Spacer()
 
-                        Button("Reveal opencode.json") {
+                        Button("Reveal OpenCode Config") {
                             appState.revealOpenCodeConfig()
                         }
                         .disabled(appState.openCodeConfigURL == nil)

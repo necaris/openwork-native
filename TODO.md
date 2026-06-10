@@ -8,7 +8,7 @@ Brief synthesis of next steps for the MVP.
 - User-facing status and build/run: [README.md](README.md)
 - Implementation plan and per-task status: [blueprint/opencode-first-ship/plan-opencode-first-ship.md](blueprint/opencode-first-ship/plan-opencode-first-ship.md)
 - Live API smoke results: [blueprint/opencode-first-ship/opencode-api-smoke.md](blueprint/opencode-first-ship/opencode-api-smoke.md)
-- Active issue tracker: `git issue list` (`.ba/` is not initialized)
+- Active issue tracker: `git-issue` via the `git issue ...` CLI (`.ba/` is not initialized)
 
 Legend: `[x]` shipped · `[~]` partial · `[ ]` remaining.
 
@@ -129,11 +129,12 @@ OpenCode accepts "always" but does not persist per-workspace rules itself.
 
 ### P3 — read-only inventory (`#fbd6b56`, spec §8)
 
-- [x] Detect project-local OpenCode/compatible skills, commands, plugins.
-- [x] Parse and display MCP entries from `opencode.json`.
+- [x] Detect project-local and global OpenCode/compatible skills, commands, plugins.
+- [x] Parse and display MCP entries from OpenCode config (`opencode.json` / `opencode.jsonc`, including global config).
 - [x] Surface detected commands as composer slash-command insertions.
-- [ ] Show inventory of skills, commands, and MCPs in the left-hand sidebar (`#51ec10d`)
-- [ ] Ensure the left-hand sidebar contents expand to fill the width (`#58c956b`)
+- [x] Show inventory of skills, commands, and MCPs in the left-hand sidebar (`#51ec10d`).
+- [x] Ensure the left-hand sidebar contents expand to fill the width (`#58c956b`).
+- [ ] Show live MCP connection/status information (`#15b1696`).
 - [x] No import/edit/install in MVP.
 
 ---
@@ -141,9 +142,9 @@ OpenCode accepts "always" but does not persist per-workspace rules itself.
 ## Tracker quick reference
 
 ```sh
-git issue ready          # unblocked queue
-git issue list           # all issues
-git issue show <id>      # detail
-git issue start <id>     # mark in_progress
-git issue close <id>     # mark done
+git issue ready          # git-issue: unblocked queue
+git issue list           # git-issue: all issues
+git issue show <id>      # git-issue: detail
+git issue start <id>     # git-issue: mark in_progress
+git issue close <id>     # git-issue: mark done
 ```

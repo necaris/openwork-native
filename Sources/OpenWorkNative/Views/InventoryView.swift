@@ -57,5 +57,6 @@ struct InventoryView: View {
                 }
             }
         }
+        .navigationTitle("Inventory")
     }
 }

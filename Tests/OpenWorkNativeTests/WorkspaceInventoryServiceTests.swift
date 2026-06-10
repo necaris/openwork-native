@@ -35,7 +35,70 @@ import Testing
             && item.path == "opencode.json"
             && item.slashCommand == "/review"
     })
-    #expect(inventory.contains(WorkspaceInventoryItem(kind: .plugin, name: "opencode-wakatime", path: "opencode.json", detail: "plugin[0]")))
+    #expect(inventory.contains { item in
+        item.kind == .plugin
+            && item.name == "opencode-wakatime"
+            && item.path == "opencode.json"
+            && item.detail.contains("plugin[0]")
+    })
+}
+
+@Test func inventoryServiceDetectsJSONCAndGlobalMCPWithoutExposingEnvValues() async throws {
+    let root = try makeTemporaryDirectory()
+    let home = try makeTemporaryDirectory()
+    let configRoot = home.appendingPathComponent(".config/opencode", isDirectory: true)
+    try makeDirectory(configRoot)
+
+    try #"""
+    {
+      // workspace-local MCP config
+      "mcp": {
+        "browser": {
+          "command": ["npx", "chrome-devtools-mcp"],
+        },
+      },
+    }
+    """#.write(
+        to: root.appendingPathComponent("opencode.jsonc"),
+        atomically: true,
+        encoding: .utf8
+    )
+
+    try #"""
+    {
+      "mcp": {
+        "orbit": {
+          "command": "uv",
+          "args": ["--directory", "/tmp/orbit", "run", "orbit"],
+          "env": {
+            "ORBIT_TOKEN": "secret-token"
+          }
+        }
+      }
+    }
+    """#.write(
+        to: configRoot.appendingPathComponent("opencode.jsonc"),
+        atomically: true,
+        encoding: .utf8
+    )
+
+    let inventory = await WorkspaceInventoryService(homeDirectory: home, environment: [:])
+        .loadInventory(in: Workspace(path: root.path))
+
+    #expect(inventory.contains { item in
+        item.kind == .mcp
+            && item.name == "browser"
+            && item.path == "opencode.jsonc"
+            && item.detail.contains("command: npx chrome-devtools-mcp")
+    })
+    #expect(inventory.contains { item in
+        item.kind == .mcp
+            && item.name == "orbit"
+            && item.path.hasSuffix(".config/opencode/opencode.jsonc")
+            && item.detail.contains("global config")
+            && item.detail.contains("env: 1 variable")
+            && !item.detail.contains("secret-token")
+    })
 }
 
 @Test func inventoryCommandAndSkillItemsExposeSlashCommands() {

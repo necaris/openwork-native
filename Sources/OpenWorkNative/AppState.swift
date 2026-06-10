@@ -49,7 +49,15 @@ final class AppState: ObservableObject {
 
     var openCodeConfigURL: URL? {
         guard let currentWorkspace else { return nil }
-        return URL(fileURLWithPath: currentWorkspace.path).appendingPathComponent("opencode.json")
+        let root = URL(fileURLWithPath: currentWorkspace.path, isDirectory: true)
+        let candidates = [
+            root.appendingPathComponent("opencode.json"),
+            root.appendingPathComponent("opencode.jsonc"),
+            root.appendingPathComponent(".opencode/opencode.json"),
+            root.appendingPathComponent(".opencode/opencode.jsonc")
+        ]
+        return candidates.first { FileManager.default.fileExists(atPath: $0.path) }
+            ?? root.appendingPathComponent("opencode.jsonc")
     }
 
     init(workspaceStore: WorkspaceStore = WorkspaceStore()) {
@@ -284,8 +292,13 @@ final class AppState: ObservableObject {
     }
 
     func revealInventoryItem(_ item: WorkspaceInventoryItem) {
-        guard let workspacePath = currentWorkspace?.path else { return }
-        let url = URL(fileURLWithPath: workspacePath).appendingPathComponent(item.path)
+        let url: URL
+        if item.path.hasPrefix("/") {
+            url = URL(fileURLWithPath: item.path)
+        } else {
+            guard let workspacePath = currentWorkspace?.path else { return }
+            url = URL(fileURLWithPath: workspacePath).appendingPathComponent(item.path)
+        }
         NSWorkspace.shared.activateFileViewerSelecting([url])
     }
 
@@ -299,7 +312,7 @@ final class AppState: ObservableObject {
             NSWorkspace.shared.activateFileViewerSelecting([configURL])
         } else {
             NSWorkspace.shared.activateFileViewerSelecting([configURL.deletingLastPathComponent()])
-            errorBanner = "No opencode.json found in this workspace. Create or edit it outside OpenWork, then restart OpenCode."
+            errorBanner = "No OpenCode config found in this workspace. Create or edit opencode.jsonc outside OpenWork, then restart OpenCode."
         }
     }
 
