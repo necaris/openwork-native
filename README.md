@@ -68,11 +68,39 @@ mask lint
 mask test
 ```
 
-Build a local unsigned `.app` bundle:
+Build a local `.app` bundle (versioned from git, signed with the local
+self-signed identity if present):
 
 ```sh
 mask app
 ```
+
+### Install for daily use
+
+Create a stable self-signed code-signing identity once. Signing with a fixed
+identity (rather than a per-build ad-hoc signature) gives the app a stable
+designated requirement, so macOS TCC permissions and Keychain ACLs survive
+rebuilds instead of resetting each time:
+
+```sh
+mask cert
+```
+
+Then build and install the bundle into `~/Applications`:
+
+```sh
+mask install
+```
+
+`mask app` (used by `mask install`) signs with the `OpenWorkNative Local`
+identity when it exists, and otherwise falls back to an ad-hoc signature with a
+warning. The bundle is non-sandboxed and not notarized — intended for local use,
+not distribution to other machines.
+
+The version is derived from git: `CFBundleShortVersionString` comes from the
+latest `vX.Y.Z` tag (`0.0.0` until you tag a release), `CFBundleVersion` from
+the commit count, and the full `git describe` is recorded in a `GitDescribe`
+Info.plist key.
 
 Open in Xcode:
 
