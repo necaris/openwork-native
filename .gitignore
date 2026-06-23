@@ -5,3 +5,6 @@ Package.resolved
 .DS_Store
 .git-issue/statuses.bash
 
+# Local debug/scratch scripts — not part of the test suite
+Tests/Scratch/
+
