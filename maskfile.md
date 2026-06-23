@@ -173,6 +173,24 @@ rm -rf "${APP_DIR}"
 mkdir -p "${MACOS_DIR}" "${RESOURCES_DIR}"
 cp ".build/release/${APP_NAME}" "${MACOS_DIR}/"
 
+# Generate AppIcon.icns from the git-versioned master in Assets/.
+ICON_SRC="Assets/AppIcon.png"
+if [ -f "${ICON_SRC}" ]; then
+  ICONSET=".build/AppIcon.iconset"
+  rm -rf "${ICONSET}"
+  mkdir -p "${ICONSET}"
+  for size in 16 32 128 256 512; do
+    sips -z "${size}" "${size}" "${ICON_SRC}" \
+      --out "${ICONSET}/icon_${size}x${size}.png" >/dev/null
+    double=$((size * 2))
+    sips -z "${double}" "${double}" "${ICON_SRC}" \
+      --out "${ICONSET}/icon_${size}x${size}@2x.png" >/dev/null
+  done
+  iconutil -c icns "${ICONSET}" -o "${RESOURCES_DIR}/AppIcon.icns"
+else
+  printf 'No %s found; bundling without an app icon.\n' "${ICON_SRC}" >&2
+fi
+
 cat > "${CONTENTS_DIR}/Info.plist" <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -182,6 +200,8 @@ cat > "${CONTENTS_DIR}/Info.plist" <<EOF
     <string>${APP_NAME}</string>
     <key>CFBundleIdentifier</key>
     <string>${BUNDLE_ID}</string>
+    <key>CFBundleIconFile</key>
+    <string>AppIcon</string>
     <key>CFBundleName</key>
     <string>${APP_NAME}</string>
     <key>CFBundlePackageType</key>

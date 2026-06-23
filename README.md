@@ -102,6 +102,10 @@ latest `vX.Y.Z` tag (`0.0.0` until you tag a release), `CFBundleVersion` from
 the commit count, and the full `git describe` is recorded in a `GitDescribe`
 Info.plist key.
 
+The app icon is generated at build time from `Assets/AppIcon.png` (a 1024×1024
+master) into `AppIcon.icns` via `sips`/`iconutil`. Replace that PNG and rebuild
+to change the icon.
+
 Open in Xcode:
 
 ```sh
