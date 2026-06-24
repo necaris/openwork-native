@@ -96,6 +96,9 @@ struct ActivityItem: Identifiable, Equatable, Sendable {
     var title: String
     var detail: String
     var state: String
+    // Stable identity for live rows that transition in place (e.g. a tool part's
+    // ID across running → completed/failed). Nil for one-shot rows that always append.
+    var sourceID: String? = nil
 }
 
 struct PermissionRequest: Identifiable, Equatable, Sendable {
