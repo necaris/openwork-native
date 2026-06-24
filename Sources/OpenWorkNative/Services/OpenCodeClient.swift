@@ -59,6 +59,13 @@ struct OpenCodeClient: Sendable {
         try await postNoBody(path: "/session/\(sessionID)/abort", body: EmptyBody(), expectedStatus: 200)
     }
 
+    // Roll the session back to (and including) the given message. OpenCode restores
+    // the workspace file snapshot from before that turn; the rolled-back messages are
+    // dropped when the next prompt is sent. Used for retry and edit-resend.
+    func revert(sessionID: String, messageID: String) async throws {
+        try await postNoBody(path: "/session/\(sessionID)/revert", body: RevertBody(messageID: messageID), expectedStatus: 200)
+    }
+
     func replyPermission(sessionID: String, permissionID: String, decision: PermissionDecision) async throws {
         try await postNoBody(
             path: "/session/\(sessionID)/permissions/\(permissionID)",
@@ -362,6 +369,10 @@ private struct EmptyBody: Encodable {}
 
 private struct PermissionReplyBody: Encodable {
     let response: String
+}
+
+private struct RevertBody: Encodable {
+    let messageID: String
 }
 
 private struct PromptBody: Encodable {
