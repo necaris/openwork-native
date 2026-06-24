@@ -451,15 +451,23 @@ private struct MessageBubble: View {
                 .lineLimit(nil)
 
             if let errorMessage = message.errorMessage, !errorMessage.isEmpty {
-                DisclosureGroup {
-                    Text(errorMessage)
+                VStack(alignment: .leading, spacing: 4) {
+                    Label("Error", systemImage: "exclamationmark.triangle.fill")
                         .font(.caption)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(.red)
+                    Text(errorMessage)
+                        .font(.callout)
                         .textSelection(.enabled)
                         .frame(maxWidth: .infinity, alignment: .leading)
-                } label: {
-                    Label("Upstream error", systemImage: "exclamationmark.triangle.fill")
-                        .font(.caption)
-                        .foregroundStyle(.red)
+                }
+                .padding(10)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color.red.opacity(0.12))
+                .clipShape(RoundedRectangle(cornerRadius: 6))
+                .overlay {
+                    RoundedRectangle(cornerRadius: 6)
+                        .stroke(Color.red.opacity(0.4), lineWidth: 0.75)
                 }
             }
 

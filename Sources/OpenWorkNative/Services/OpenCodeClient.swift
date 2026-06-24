@@ -292,6 +292,27 @@ extension OpenCodeEvent {
         properties["status"]?.objectValue?["type"]?.stringValue
     }
 
+    // Extracts a human-readable message from a `session.error` event. OpenCode nests
+    // the detail under error.data.message (e.g. "Bad Request: Model must be one of…"),
+    // falling back to error.message, the error name, or a flattened rendering.
+    var sessionErrorMessage: String {
+        guard let error = properties["error"] else { return "Unknown error" }
+        if let text = error.stringValue, !text.isEmpty { return text }
+        if let object = error.objectValue {
+            if let message = object["data"]?.objectValue?["message"]?.stringValue, !message.isEmpty {
+                return message
+            }
+            if let message = object["message"]?.stringValue, !message.isEmpty {
+                return message
+            }
+            if let name = object["name"]?.stringValue, !name.isEmpty {
+                return name
+            }
+        }
+        let rendered = error.displayValue
+        return rendered.isEmpty ? "Unknown error" : rendered
+    }
+
     var permissionRequest: PermissionRequest? {
         guard type == "permission.asked" else { return nil }
         let id = properties["id"]?.stringValue ?? UUID().uuidString

@@ -584,8 +584,13 @@ final class AppState: ObservableObject {
                 appendActivity(kind: .runtime, title: "Agent switched", detail: agent, state: agent)
             }
         case "session.error":
-            appendActivity(kind: .step, title: "Session error", detail: event.properties["error"]?.displayValue ?? "Unknown error", state: "Failed")
-            if let sessionID = event.sessionID { markSession(sessionID, running: false) }
+            let detail = event.sessionErrorMessage
+            let sessionID = event.sessionID ?? selectedSessionID
+            if let sessionID {
+                attachSessionError(detail, to: sessionID)
+                markSession(sessionID, running: false)
+            }
+            appendActivity(kind: .step, title: "Session error", detail: detail, state: "Failed")
         case "permission.asked":
             if let request = event.permissionRequest {
                 upsertPermission(request)
@@ -850,6 +855,31 @@ final class AppState: ObservableObject {
             for messageIndex in session.messages.indices {
                 session.messages[messageIndex].isStreaming = false
             }
+        }
+        sessions[index] = session
+    }
+
+    // Surface a session/prompt error inline in the transcript by attaching it to
+    // the session's latest assistant message (the streaming stub for the prompt that
+    // failed). When there is no assistant message yet, append a standalone error
+    // bubble so the failure is still visible in the chat pane.
+    private func attachSessionError(_ message: String, to sessionID: String) {
+        guard let index = sessions.firstIndex(where: { $0.id == sessionID }) else { return }
+        var session = sessions[index]
+        if let lastAssistant = session.messages.lastIndex(where: { $0.role == .assistant }) {
+            session.messages[lastAssistant].errorMessage = message
+            session.messages[lastAssistant].isStreaming = false
+        } else {
+            session.messages.append(
+                TranscriptMessage(
+                    id: "error-\(UUID().uuidString)",
+                    role: .assistant,
+                    parts: [],
+                    date: Date(),
+                    isStreaming: false,
+                    errorMessage: message
+                )
+            )
         }
         sessions[index] = session
     }
