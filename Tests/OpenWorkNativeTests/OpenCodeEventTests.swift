@@ -35,6 +35,40 @@ import Testing
     #expect(event.permissionRequest == nil)
 }
 
+@Test func extractsNestedSessionErrorMessage() throws {
+    let data = #"""
+    {
+      "type": "session.error",
+      "properties": {
+        "sessionID": "ses_1",
+        "error": {
+          "name": "APIError",
+          "data": { "message": "Bad Request: Model must be one of the following" }
+        }
+      }
+    }
+    """#.data(using: .utf8)!
+
+    let event = try JSONDecoder().decode(OpenCodeEvent.self, from: data)
+    #expect(event.sessionErrorMessage == "Bad Request: Model must be one of the following")
+}
+
+@Test func fallsBackToErrorNameWhenNoMessage() throws {
+    let data = #"""
+    {"type":"session.error","properties":{"sessionID":"ses_1","error":{"name":"ProviderAuthError"}}}
+    """#.data(using: .utf8)!
+    let event = try JSONDecoder().decode(OpenCodeEvent.self, from: data)
+    #expect(event.sessionErrorMessage == "ProviderAuthError")
+}
+
+@Test func sessionErrorMessageDefaultsWhenAbsent() throws {
+    let data = #"""
+    {"type":"session.error","properties":{"sessionID":"ses_1"}}
+    """#.data(using: .utf8)!
+    let event = try JSONDecoder().decode(OpenCodeEvent.self, from: data)
+    #expect(event.sessionErrorMessage == "Unknown error")
+}
+
 @Test func decodesTodoUpdatedEvent() throws {
     let data = #"""
     {
