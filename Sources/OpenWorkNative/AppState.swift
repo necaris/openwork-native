@@ -275,6 +275,53 @@ final class AppState: ObservableObject {
         }
     }
 
+    // Re-run the user prompt that produced the given assistant turn. Reverts to that
+    // user message (restoring files) and resends its original text unchanged.
+    func retryAssistantMessage(_ messageID: String) {
+        guard let index = selectedSessionIndex else { return }
+        let messages = sessions[index].messages
+        guard let assistantPos = messages.firstIndex(where: { $0.id == messageID }),
+              let userPos = messages[..<assistantPos].lastIndex(where: { $0.role == .user }) else { return }
+        let userMessage = messages[userPos]
+        resend(userMessage.content, fromMessageID: userMessage.id)
+    }
+
+    // Resend a previously sent user prompt with edited text. Reverts to that user
+    // message (restoring files) and sends the new text in its place.
+    func editAndResend(_ messageID: String, newText: String) {
+        resend(newText, fromMessageID: messageID)
+    }
+
+    // A message can be retried/edited once it has a server-assigned ID and the session
+    // is idle — local stubs and in-flight turns are not eligible.
+    func canRevert(to message: TranscriptMessage) -> Bool {
+        guard let session = selectedSession, !session.isRunning, !message.isStreaming else { return false }
+        return message.id.hasPrefix("msg")
+    }
+
+    private func resend(_ prompt: String, fromMessageID messageID: String) {
+        let trimmed = prompt.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty, let sessionID = selectedSessionID, let index = selectedSessionIndex else { return }
+        guard let position = sessions[index].messages.firstIndex(where: { $0.id == messageID }) else { return }
+        AppLog.state.log("resend session=\(sessionID, privacy: .public) from=\(messageID, privacy: .public)")
+
+        // Drop the reverted turn and everything after it locally; the server drops the
+        // same messages when the resent prompt commits the revert.
+        sessions[index].messages.removeSubrange(position...)
+
+        Task {
+            do {
+                guard let client else { return }
+                try await client.revert(sessionID: sessionID, messageID: messageID)
+            } catch {
+                presentError("Could not revert before resending", error)
+                loadSelectedSessionMessages()
+                return
+            }
+            sendPrompt(trimmed)
+        }
+    }
+
     func stopSelectedSession() {
         guard let sessionID = selectedSessionID else { return }
         Task {

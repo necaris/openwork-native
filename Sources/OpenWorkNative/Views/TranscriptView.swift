@@ -6,6 +6,7 @@ struct TranscriptView: View {
     @EnvironmentObject private var appState: AppState
     @State private var prompt = ""
     @State private var promptHeight = PromptTextView.minHeight
+    @State private var editingMessageID: String?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -18,8 +19,13 @@ struct TranscriptView: View {
                     LazyVStack(alignment: .leading, spacing: 14) {
                         if let session = appState.sessions.first(where: { $0.id == appState.selectedSessionID }) {
                             ForEach(session.messages) { message in
-                                MessageBubble(message: message)
-                                    .id(message.id)
+                                MessageBubble(
+                                    message: message,
+                                    canRevert: appState.canRevert(to: message),
+                                    onRetry: { appState.retryAssistantMessage(message.id) },
+                                    onEdit: { beginEditing(message) }
+                                )
+                                .id(message.id)
                             }
                         } else {
                             EmptyTranscriptView()
@@ -59,11 +65,26 @@ struct TranscriptView: View {
                 }
             }
 
+            if editingMessageID != nil {
+                HStack(spacing: 8) {
+                    Image(systemName: "pencil")
+                    Text("Editing a previous message — sending will replace it and everything after.")
+                        .lineLimit(2)
+                    Spacer()
+                    Button("Cancel") { cancelEditing() }
+                        .controlSize(.small)
+                }
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .padding(.horizontal)
+                .padding(.top, 8)
+            }
+
             HStack(alignment: .bottom, spacing: 10) {
                 PromptTextView(
                     text: $prompt,
                     height: $promptHeight,
-                    placeholder: "Ask OpenCode to work on this project",
+                    placeholder: editingMessageID == nil ? "Ask OpenCode to work on this project" : "Edit your message…",
                     onSubmit: sendFromKeyboard
                 )
 
@@ -139,7 +160,12 @@ struct TranscriptView: View {
     private func send() {
         let trimmed = prompt.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
-        appState.sendPrompt(prompt)
+        if let editingMessageID {
+            appState.editAndResend(editingMessageID, newText: trimmed)
+            self.editingMessageID = nil
+        } else {
+            appState.sendPrompt(prompt)
+        }
         prompt = ""
     }
 
@@ -147,6 +173,16 @@ struct TranscriptView: View {
         guard canSend else { return false }
         send()
         return true
+    }
+
+    private func beginEditing(_ message: TranscriptMessage) {
+        prompt = message.content
+        editingMessageID = message.id
+    }
+
+    private func cancelEditing() {
+        editingMessageID = nil
+        prompt = ""
     }
 }
 
@@ -405,10 +441,13 @@ private struct SessionStatusHeader: View {
 
 private struct MessageBubble: View {
     let message: TranscriptMessage
+    let canRevert: Bool
+    let onRetry: () -> Void
+    let onEdit: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            HStack {
+            HStack(spacing: 8) {
                 Text(message.role.rawValue)
                     .font(.caption)
                     .fontWeight(.semibold)
@@ -417,6 +456,24 @@ private struct MessageBubble: View {
                         .controlSize(.small)
                 }
                 Spacer()
+                if canRevert, message.role == .assistant {
+                    Button {
+                        onRetry()
+                    } label: {
+                        Image(systemName: "arrow.clockwise")
+                    }
+                    .buttonStyle(.borderless)
+                    .help("Retry this turn")
+                }
+                if canRevert, message.role == .user {
+                    Button {
+                        onEdit()
+                    } label: {
+                        Image(systemName: "pencil")
+                    }
+                    .buttonStyle(.borderless)
+                    .help("Edit and resend")
+                }
                 Button {
                     NSPasteboard.general.clearContents()
                     NSPasteboard.general.setString(message.content, forType: .string)
@@ -424,6 +481,7 @@ private struct MessageBubble: View {
                     Image(systemName: "doc.on.doc")
                 }
                 .buttonStyle(.borderless)
+                .help("Copy")
             }
 
             if let thinking = message.thinking, !thinking.isEmpty {

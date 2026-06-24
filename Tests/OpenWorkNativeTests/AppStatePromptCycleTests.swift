@@ -165,6 +165,83 @@ import Testing
     #expect(state.activity.first?.detail == "msg_a")
 }
 
+@MainActor
+@Test func retryAssistantMessageRevertsToUserPromptAndResends() async throws {
+    let state = makeState()
+    seedSession(state, sessionID: "ses_1")
+    state.selectedSessionID = "ses_1"
+    state.sessions[0].messages = [
+        TranscriptMessage(id: "msg_u", role: .user, parts: [TranscriptMessagePart(id: "p_u", type: "text", text: "hi")], date: Date(), isStreaming: false),
+        TranscriptMessage(id: "msg_a", role: .assistant, parts: [TranscriptMessagePart(id: "p_a", type: "text", text: "Hello")], date: Date(), isStreaming: false)
+    ]
+    let mock = state.client!.networking as! RecordingNetworking
+    mock.statusForPath = { $0.hasSuffix("/revert") ? 200 : nil }
+
+    state.retryAssistantMessage("msg_a")
+    try await waitForRequest(matching: { $0.url?.path == "/session/ses_1/prompt_async" }, in: mock)
+
+    let revert = try #require(mock.requests.first { $0.url?.path == "/session/ses_1/revert" })
+    let revertBody = try JSONSerialization.jsonObject(with: revert.httpBody ?? Data()) as? [String: Any]
+    #expect(revertBody?["messageID"] as? String == "msg_u")
+
+    let prompt = try #require(mock.requests.last { $0.url?.path == "/session/ses_1/prompt_async" })
+    let promptBody = try JSONSerialization.jsonObject(with: prompt.httpBody ?? Data()) as? [String: Any]
+    let parts = promptBody?["parts"] as? [[String: Any]]
+    #expect(parts?.first?["text"] as? String == "hi")
+
+    // Old turn removed; fresh local stubs in its place.
+    let messages = state.sessions[0].messages
+    #expect(messages.count == 2)
+    #expect(messages[0].role == .user)
+    #expect(messages[0].content == "hi")
+    #expect(messages[0].id.hasPrefix("local-user-"))
+    #expect(messages[1].role == .assistant)
+}
+
+@MainActor
+@Test func editAndResendRevertsToMessageAndSendsNewText() async throws {
+    let state = makeState()
+    seedSession(state, sessionID: "ses_1")
+    state.selectedSessionID = "ses_1"
+    state.sessions[0].messages = [
+        TranscriptMessage(id: "msg_u", role: .user, parts: [TranscriptMessagePart(id: "p_u", type: "text", text: "original")], date: Date(), isStreaming: false),
+        TranscriptMessage(id: "msg_a", role: .assistant, parts: [TranscriptMessagePart(id: "p_a", type: "text", text: "reply")], date: Date(), isStreaming: false)
+    ]
+    let mock = state.client!.networking as! RecordingNetworking
+    mock.statusForPath = { $0.hasSuffix("/revert") ? 200 : nil }
+
+    state.editAndResend("msg_u", newText: "edited prompt")
+    try await waitForRequest(matching: { $0.url?.path == "/session/ses_1/prompt_async" }, in: mock)
+
+    let revert = try #require(mock.requests.first { $0.url?.path == "/session/ses_1/revert" })
+    let revertBody = try JSONSerialization.jsonObject(with: revert.httpBody ?? Data()) as? [String: Any]
+    #expect(revertBody?["messageID"] as? String == "msg_u")
+
+    let prompt = try #require(mock.requests.last { $0.url?.path == "/session/ses_1/prompt_async" })
+    let promptBody = try JSONSerialization.jsonObject(with: prompt.httpBody ?? Data()) as? [String: Any]
+    let parts = promptBody?["parts"] as? [[String: Any]]
+    #expect(parts?.first?["text"] as? String == "edited prompt")
+    #expect(state.sessions[0].messages.first?.content == "edited prompt")
+}
+
+@MainActor
+@Test func canRevertOnlyForServerMessagesWhileIdle() {
+    let state = makeState()
+    seedSession(state, sessionID: "ses_1")
+    state.selectedSessionID = "ses_1"
+
+    let serverMsg = TranscriptMessage(id: "msg_u", role: .user, parts: [], date: Date(), isStreaming: false)
+    let localStub = TranscriptMessage(id: "local-user-x", role: .user, parts: [], date: Date(), isStreaming: false)
+    let streaming = TranscriptMessage(id: "msg_a", role: .assistant, parts: [], date: Date(), isStreaming: true)
+
+    #expect(state.canRevert(to: serverMsg) == true)
+    #expect(state.canRevert(to: localStub) == false)
+    #expect(state.canRevert(to: streaming) == false)
+
+    state.sessions[0].isRunning = true
+    #expect(state.canRevert(to: serverMsg) == false)
+}
+
 // MARK: - Helpers
 
 @MainActor
@@ -308,12 +385,16 @@ final class RecordingNetworking: OpenCodeNetworking, @unchecked Sendable {
 
     var nextResponseBody: Data = Data()
     var nextStatusCode: Int = 204
+    // Optional per-request status override, keyed on the request URL path. Lets a test
+    // mix endpoints with different success codes (e.g. revert=200, prompt=204).
+    var statusForPath: (@Sendable (String) -> Int?)?
 
     func data(for request: URLRequest) async throws -> (Data, URLResponse) {
         lock.withLock { _requests.append(request) }
+        let code = statusForPath?(request.url?.path ?? "") ?? nextStatusCode
         let response = HTTPURLResponse(
             url: request.url!,
-            statusCode: nextStatusCode,
+            statusCode: code,
             httpVersion: nil,
             headerFields: nil
         )!
