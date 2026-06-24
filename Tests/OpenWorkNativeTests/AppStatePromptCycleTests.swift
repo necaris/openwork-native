@@ -165,6 +165,39 @@ import Testing
     #expect(state.activity.first?.detail == "msg_a")
 }
 
+@MainActor
+@Test func toolPartUpdatesTransitionInPlace() {
+    let state = makeState()
+    seedSession(state, sessionID: "ses_1")
+    state.apply(messageUpdated(sessionID: "ses_1", messageID: "msg_a", role: "assistant"))
+
+    // Same tool part streams running → completed: one row that transitions in place.
+    state.apply(toolPartUpdated(
+        sessionID: "ses_1", messageID: "msg_a", partID: "prt_t1",
+        tool: "bash", status: "running",
+        stateJSON: #"{"status":"running","title":"swift test"}"#
+    ))
+    let toolRows = { state.activity.filter { $0.kind == .tool } }
+    #expect(toolRows().count == 1)
+    #expect(state.activity.first?.state == "running")
+
+    state.apply(toolPartUpdated(
+        sessionID: "ses_1", messageID: "msg_a", partID: "prt_t1",
+        tool: "bash", status: "completed",
+        stateJSON: #"{"status":"completed","title":"swift test"}"#
+    ))
+    #expect(toolRows().count == 1)
+    #expect(state.activity.first?.state == "completed")
+
+    // A different part appends a new row rather than overwriting the first.
+    state.apply(toolPartUpdated(
+        sessionID: "ses_1", messageID: "msg_a", partID: "prt_t2",
+        tool: "read", status: "running",
+        stateJSON: #"{"status":"running","title":"read file"}"#
+    ))
+    #expect(toolRows().count == 2)
+}
+
 // MARK: - Helpers
 
 @MainActor

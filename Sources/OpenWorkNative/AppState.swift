@@ -669,14 +669,14 @@ final class AppState: ObservableObject {
             upsertMessage(sessionID: sessionID, messageID: messageID, role: role, part: TranscriptMessagePart(id: partID, type: partType, text: name), streaming: streaming, isDelta: false)
             let tool = event.properties["part"]?.objectValue?["tool"]?.stringValue ?? name
             let state = event.properties["part"]?.objectValue?["state"]?.objectValue?["status"]?.stringValue ?? "running"
-            appendActivity(kind: .tool, title: tool, detail: toolActionDetail(event, fallback: messageID), state: state)
+            upsertActivity(kind: .tool, title: tool, detail: toolActionDetail(event, fallback: messageID), state: state, sourceID: partID)
         } else if partType == "tool_result" {
             let output = event.properties["part"]?.objectValue?["toolResult"]?.objectValue?["text"]?.stringValue ?? "No output"
             upsertMessage(sessionID: sessionID, messageID: messageID, role: role, part: TranscriptMessagePart(id: partID, type: partType, text: output), streaming: streaming, isDelta: false)
         } else if partType == "tool" {
             let tool = event.properties["part"]?.objectValue?["tool"]?.stringValue ?? "Tool"
             let state = event.properties["part"]?.objectValue?["state"]?.objectValue?["status"]?.stringValue ?? "running"
-            appendActivity(kind: .tool, title: tool, detail: toolActionDetail(event, fallback: messageID), state: state)
+            upsertActivity(kind: .tool, title: tool, detail: toolActionDetail(event, fallback: messageID), state: state, sourceID: partID)
         }
     }
 
@@ -882,6 +882,26 @@ final class AppState: ObservableObject {
             at: 0
         )
         trimActivity()
+    }
+
+    // Like appendActivity, but for rows that represent live state: if a row with the
+    // same sourceID already exists, transition it in place (running → completed/failed)
+    // instead of appending a new row. Keeps the existing id so SwiftUI preserves the
+    // row (and its expansion state) rather than animating a fresh insert.
+    private func upsertActivity(kind: ActivityItem.Kind, title: String, detail: String, state: String, sourceID: String) {
+        if let index = activity.firstIndex(where: { $0.sourceID == sourceID && $0.kind == kind }) {
+            var item = activity[index]
+            item.title = title
+            item.detail = detail
+            item.state = state
+            activity[index] = item
+        } else {
+            activity.insert(
+                ActivityItem(id: UUID(), kind: kind, title: title, detail: detail, state: state, sourceID: sourceID),
+                at: 0
+            )
+            trimActivity()
+        }
     }
 
     private func trimActivity() {
