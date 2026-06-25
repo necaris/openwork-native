@@ -1,5 +1,7 @@
 # OpenWork Native
 
+![app icon](./Assets/AppIcon.png)
+
 A native macOS desktop client for [OpenCode](https://opencode.ai), inspired by
 [OpenWork](https://different.ai) from Different.AI. Local-first: the app talks
 directly to a locally-supervised OpenCode server against a folder you choose —
@@ -32,19 +34,10 @@ worker connection, UI-control MCP bridge, Slack/Telegram connectors, hosted
 skill hubs, browser/mobile parity, multi-user workflow distribution. See
 [SPEC.md](SPEC.md) for the full list.
 
-## Workflow stance
-
-OpenWork Native intentionally differs from OpenWork's workspace-first product
-shape. The main window should favor continuing the last local session over
-manual workspace/session selection. Full workspace and session management can
-live in a separate window or sheet; it does not need to occupy the whole left
-sidebar.
-
 ## Current tracking
 
-Task tracking uses `git issue` in this repo (`.ba/` is not initialized). Run
-`git issue ready` for the current queue; `TODO.md` mirrors the high-level
-checklist.
+Task tracking uses `git issue` in this repo. Run `git issue ready` for the
+current queue; `TODO.md` mirrors the high-level checklist.
 
 ## Requirements
 
@@ -55,6 +48,8 @@ checklist.
 - A configured model provider (API key) for OpenCode
 
 ## Build & run
+
+Use [Mask](https://github.com/jacobdeichert/mask) as a script runner:
 
 ```sh
 mask build
