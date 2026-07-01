@@ -26,6 +26,7 @@ final class AppState: ObservableObject {
     @Published var selectedDefaultModelID: String?
     @Published var sessionModelOverrides: [OpenCodeSession.ID: SessionModel] = [:]
     @Published var isUpdatingDefaultModel = false
+    @Published var showAllModels = false
     @Published var providers: [ModelProvider] = [
         ModelProvider(
             id: "opencode",
@@ -57,8 +58,32 @@ final class AppState: ObservableObject {
         return source.sorted()
     }
 
+    /// Available models grouped by provider, so long lists can render as per-provider sections/submenus.
+    /// When `showAllModels` is off, applies `ModelFiltering`'s default filters and generation trimming.
+    var groupedAvailableModels: [(provider: ModelProvider, modelIDs: [String])] {
+        let connected = providers.filter { $0.authStatus == "Connected" }
+        let source = connected.isEmpty ? providers : connected
+        return source
+            .filter { showAllModels || !ModelFiltering.isProviderHidden($0) }
+            .map { provider in
+                let names = showAllModels
+                    ? provider.models.filter { $0 != "No configured model" }
+                    : ModelFiltering.slimmedModelNames(for: provider)
+                let modelIDs = names.map { "\(provider.id)/\($0)" }.sorted()
+                return (provider, modelIDs)
+            }
+            .filter { !$0.1.isEmpty }
+            .sorted { $0.0.name < $1.0.name }
+    }
+
     func displayModel(for session: OpenCodeSession) -> SessionModel? {
         sessionModelOverrides[session.id] ?? session.model
+    }
+
+    /// Strips the "provider/" prefix from a model ID for display inside an already-grouped section.
+    func modelDisplayName(_ modelID: String) -> String {
+        guard let separator = modelID.firstIndex(of: "/") else { return modelID }
+        return String(modelID[modelID.index(after: separator)...])
     }
 
     var openCodeConfigURL: URL? {

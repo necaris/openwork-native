@@ -401,12 +401,16 @@ private struct SessionStatusHeader: View {
                     .foregroundStyle(.tertiary)
             }
             Menu("Change Model") {
-                if appState.availableDefaultModelIDs.isEmpty {
+                if appState.groupedAvailableModels.isEmpty {
                     Text("No models loaded")
                 } else {
-                    ForEach(appState.availableDefaultModelIDs, id: \.self) { modelID in
-                        Button(modelID) {
-                            appState.selectSessionModel(modelID, for: session)
+                    ForEach(appState.groupedAvailableModels, id: \.provider.id) { group in
+                        Menu(group.provider.name) {
+                            ForEach(group.modelIDs, id: \.self) { modelID in
+                                Button(appState.modelDisplayName(modelID)) {
+                                    appState.selectSessionModel(modelID, for: session)
+                                }
+                            }
                         }
                     }
                 }

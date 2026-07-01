@@ -116,12 +116,19 @@ struct ChangedFile: Identifiable, Equatable, Sendable {
     var status: String
 }
 
+struct ModelCapability: Equatable, Sendable {
+    var reasoning: Bool
+    var outputText: Bool
+    var outputImage: Bool
+}
+
 struct ModelProvider: Identifiable, Equatable, Sendable {
     var id: String
     var name: String
     var models: [String]
     var selectedModel: String
     var authStatus: String
+    var modelCapabilities: [String: ModelCapability] = [:]
 
     var modelIDs: [String] {
         models

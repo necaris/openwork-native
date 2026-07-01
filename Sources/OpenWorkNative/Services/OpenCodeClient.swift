@@ -85,7 +85,14 @@ struct OpenCodeClient: Sendable {
             let models = provider.models.keys.sorted()
             let selected = response.default[provider.id] ?? models.first ?? "No configured model"
             let status = response.connected.contains(provider.id) ? "Connected" : "Not connected"
-            return ModelProvider(id: provider.id, name: provider.name, models: models.isEmpty ? [selected] : models, selectedModel: selected, authStatus: status)
+            let capabilities = provider.models.mapValues {
+                ModelCapability(
+                    reasoning: $0.capabilities?.reasoning ?? true,
+                    outputText: $0.capabilities?.output?.text ?? true,
+                    outputImage: $0.capabilities?.output?.image ?? false
+                )
+            }
+            return ModelProvider(id: provider.id, name: provider.name, models: models.isEmpty ? [selected] : models, selectedModel: selected, authStatus: status, modelCapabilities: capabilities)
         }
     }
 
@@ -599,4 +606,16 @@ private struct APIProvider: Decodable {
     let models: [String: APIProviderModel]
 }
 
-private struct APIProviderModel: Decodable {}
+private struct APIProviderModel: Decodable {
+    let capabilities: APIModelCapabilities?
+}
+
+private struct APIModelCapabilities: Decodable {
+    let reasoning: Bool?
+    let output: APIModelOutputCapabilities?
+}
+
+private struct APIModelOutputCapabilities: Decodable {
+    let text: Bool?
+    let image: Bool?
+}

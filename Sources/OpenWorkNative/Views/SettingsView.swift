@@ -37,12 +37,20 @@ struct SettingsView: View {
                     if appState.selectedDefaultModelID == nil {
                         Text("No default model selected").tag("")
                     }
-                    ForEach(appState.availableDefaultModelIDs, id: \.self) { modelID in
-                        Text(modelID).tag(modelID)
+                    ForEach(appState.groupedAvailableModels, id: \.provider.id) { group in
+                        Section(group.provider.name) {
+                            ForEach(group.modelIDs, id: \.self) { modelID in
+                                Text(appState.modelDisplayName(modelID)).tag(modelID)
+                            }
+                        }
                     }
                 }
                 .pickerStyle(.menu)
                 .disabled(appState.runtimeStatus != .running || appState.availableDefaultModelIDs.isEmpty || appState.isUpdatingDefaultModel)
+
+                Toggle("Show full model list", isOn: $appState.showAllModels)
+                    .toggleStyle(.checkbox)
+                    .help("Include free-tier providers, non-reasoning models, and other entries hidden by default")
 
                 if appState.isUpdatingDefaultModel {
                     ProgressView("Updating default model…")
