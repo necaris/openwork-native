@@ -741,19 +741,19 @@ final class AppState: ObservableObject {
 
         if partType == "reasoning" || partType == "text" {
             upsertMessage(sessionID: sessionID, messageID: messageID, role: role, part: TranscriptMessagePart(id: partID, type: partType, text: text), streaming: streaming, isDelta: event.textDelta != nil)
-        } else if partType == "tool_call" {
-            let name = event.properties["part"]?.objectValue?["toolCall"]?.objectValue?["name"]?.stringValue ?? "tool"
-            upsertMessage(sessionID: sessionID, messageID: messageID, role: role, part: TranscriptMessagePart(id: partID, type: partType, text: name), streaming: streaming, isDelta: false)
-            let tool = event.properties["part"]?.objectValue?["tool"]?.stringValue ?? name
-            let state = event.properties["part"]?.objectValue?["state"]?.objectValue?["status"]?.stringValue ?? "running"
-            upsertActivity(kind: .tool, title: tool, detail: toolActionDetail(event, fallback: messageID), state: state, sourceID: partID)
-        } else if partType == "tool_result" {
-            let output = event.properties["part"]?.objectValue?["toolResult"]?.objectValue?["text"]?.stringValue ?? "No output"
-            upsertMessage(sessionID: sessionID, messageID: messageID, role: role, part: TranscriptMessagePart(id: partID, type: partType, text: output), streaming: streaming, isDelta: false)
         } else if partType == "tool" {
-            let tool = event.properties["part"]?.objectValue?["tool"]?.stringValue ?? "Tool"
-            let state = event.properties["part"]?.objectValue?["state"]?.objectValue?["status"]?.stringValue ?? "running"
-            upsertActivity(kind: .tool, title: tool, detail: toolActionDetail(event, fallback: messageID), state: state, sourceID: partID)
+            let partObject = event.properties["part"]?.objectValue
+            let tool = partObject?["tool"]?.stringValue ?? "tool"
+            let state = partObject?["state"]?.objectValue
+            let status = state?["status"]?.stringValue ?? "running"
+            let toolText = TranscriptMessagePart.toolCallText(
+                tool: tool,
+                title: state?["title"]?.stringValue,
+                status: status,
+                output: state?["output"]?.displayValue
+            )
+            upsertMessage(sessionID: sessionID, messageID: messageID, role: role, part: TranscriptMessagePart(id: partID, type: partType, text: toolText), streaming: streaming, isDelta: false)
+            upsertActivity(kind: .tool, title: tool, detail: toolActionDetail(event, fallback: messageID), state: status, sourceID: partID)
         }
     }
 

@@ -45,6 +45,21 @@ struct TranscriptMessagePart: Identifiable, Equatable, Sendable {
     let id: String
     let type: String
     var text: String
+
+    /// Renders a "tool" part (OpenCode's real part type — there is no separate
+    /// tool-call/tool-result pair) as inline markdown, so a tool-only assistant
+    /// turn still shows something instead of an empty bubble.
+    static func toolCallText(tool: String, title: String?, status: String?, output: String?) -> String {
+        var header = "> **Tool:** `\(tool)`"
+        if let title, !title.isEmpty, title != tool {
+            header += " — \(title)"
+        }
+        if let status, !status.isEmpty, status != "completed" {
+            header += " _(\(status))_"
+        }
+        guard let output, !output.isEmpty else { return header }
+        return header + "\n\n<details>\n<summary>Output</summary>\n\n```\n\(output)\n```\n</details>"
+    }
 }
 
 struct TranscriptMessage: Identifiable, Equatable, Sendable {
@@ -66,14 +81,7 @@ struct TranscriptMessage: Identifiable, Equatable, Sendable {
     var errorMessage: String?
 
     var content: String {
-        parts.filter { $0.type == "text" || $0.type == "tool_call" || $0.type == "tool_result" }.map { part in
-            if part.type == "tool_call" {
-                return "\n> **Tool Call:** `\(part.text.split(separator: "\n").first ?? "unknown")`\n"
-            } else if part.type == "tool_result" {
-                return "\n<details>\n<summary>Tool Result</summary>\n\n```\n\(part.text)\n```\n</details>\n"
-            }
-            return part.text
-        }.joined(separator: "\n")
+        parts.filter { $0.type == "text" || $0.type == "tool" }.map(\.text).joined(separator: "\n")
     }
 
     var thinking: String? {

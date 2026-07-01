@@ -508,11 +508,16 @@ struct APIMessageEnvelope: Decodable {
             : nil
             
         let mappedParts = parts.map { part -> TranscriptMessagePart in
-            var text = part.text ?? ""
-            if part.type == "tool_call" {
-                text = part.toolCall?.name ?? "tool"
-            } else if part.type == "tool_result" {
-                text = part.toolResult?.text ?? "No output"
+            let text: String
+            if part.type == "tool" {
+                text = TranscriptMessagePart.toolCallText(
+                    tool: part.tool ?? "tool",
+                    title: part.state?.title,
+                    status: part.state?.status,
+                    output: part.state?.output?.displayValue
+                )
+            } else {
+                text = part.text ?? ""
             }
             return TranscriptMessagePart(id: part.id ?? UUID().uuidString, type: part.type, text: text)
         }
@@ -577,15 +582,13 @@ struct APIMessagePart: Decodable {
     let id: String?
     let type: String
     let text: String?
-    let toolCall: APIToolCall?
-    let toolResult: APIToolResult?
-    
-    struct APIToolCall: Decodable {
-        let name: String
-    }
-    
-    struct APIToolResult: Decodable {
-        let text: String?
+    let tool: String?
+    let state: APIToolState?
+
+    struct APIToolState: Decodable {
+        let status: String?
+        let title: String?
+        let output: JSONValue?
     }
 }
 
