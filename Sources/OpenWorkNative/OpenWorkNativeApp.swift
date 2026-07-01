@@ -25,6 +25,10 @@ struct OpenWorkNativeApp: App {
 final class AppDelegate: NSObject, NSApplicationDelegate {
     weak var appState: AppState?
 
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        NotificationService.requestAuthorization()
+    }
+
     func applicationWillTerminate(_ notification: Notification) {
         AppLog.app.log("applicationWillTerminate — stopping OpenCode runtime")
         appState?.stopRuntime()

@@ -12,8 +12,12 @@ struct ActivityView: View {
                 } else {
                     ForEach(appState.permissionRequests) { request in
                         VStack(alignment: .leading, spacing: 8) {
-                            Text(request.action)
-                                .font(.headline)
+                            HStack(spacing: 6) {
+                                Image(systemName: "exclamationmark.triangle.fill")
+                                    .foregroundStyle(.orange)
+                                Text(request.action)
+                                    .font(.headline)
+                            }
                             Text(request.target)
                                 .font(.caption)
                                 .textSelection(.enabled)
@@ -27,6 +31,8 @@ struct ActivityView: View {
                                 Button("Allow Once") {
                                     appState.resolvePermission(request, decision: .once)
                                 }
+                                .buttonStyle(.borderedProminent)
+                                .tint(.orange)
                                 Button("Deny") {
                                     appState.resolvePermission(request, decision: .reject)
                                 }
@@ -35,6 +41,15 @@ struct ActivityView: View {
                                 }
                             }
                         }
+                        .padding(10)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(Color.orange.opacity(0.15))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 8)
+                                .strokeBorder(Color.orange, lineWidth: 1.5)
+                        )
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                        .listRowInsets(EdgeInsets())
                         .padding(.vertical, 4)
                     }
                 }

@@ -905,6 +905,7 @@ final class AppState: ObservableObject {
 
     private func removePermission(id: String) {
         permissionRequests.removeAll { $0.id == id }
+        NotificationService.removeDelivered(id: id)
     }
 
     private func upsertPermission(_ request: PermissionRequest) {
@@ -914,6 +915,7 @@ final class AppState: ObservableObject {
             permissionRequests[index] = request
         } else {
             permissionRequests.insert(request, at: 0)
+            NotificationService.notifyPermissionRequested(request)
         }
     }
 
