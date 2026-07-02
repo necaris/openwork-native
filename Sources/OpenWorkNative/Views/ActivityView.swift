@@ -100,10 +100,45 @@ struct ActivityView: View {
 }
 
 private struct ActivityRow: View {
+    @EnvironmentObject private var appState: AppState
     let item: ActivityItem
     @State private var isExpanded = false
 
     var body: some View {
+        if item.kind == .tool {
+            toolRow
+        } else {
+            genericRow
+        }
+    }
+
+    // Tool rows mirror a tool-call-only assistant message in the transcript: slim,
+    // no inline subtitle (it's available as a hover tooltip instead), and clicking
+    // jumps to and expands the originating message rather than expanding in place.
+    private var toolRow: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            Image(systemName: item.kind.symbolName)
+                .foregroundStyle(.secondary)
+                .frame(width: 14)
+            Text(item.title)
+                .font(.callout)
+                .lineLimit(1)
+            Spacer(minLength: 8)
+            Text(item.state)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+        }
+        .padding(.vertical, 2)
+        .contentShape(Rectangle())
+        .help(item.detail)
+        .onTapGesture {
+            guard let messageID = item.messageID else { return }
+            appState.revealMessage(messageID)
+        }
+    }
+
+    private var genericRow: some View {
         VStack(alignment: .leading, spacing: 5) {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
                 Image(systemName: item.kind.symbolName)
@@ -150,7 +185,7 @@ private struct ActivityRow: View {
     }
 
     private var isCollapsible: Bool {
-        item.kind == .tool || item.detail.count > 180 || item.detail.contains("\n")
+        item.detail.count > 180 || item.detail.contains("\n")
     }
 
     private var summary: String {

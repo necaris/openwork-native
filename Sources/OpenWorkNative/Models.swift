@@ -88,6 +88,19 @@ struct TranscriptMessage: Identifiable, Equatable, Sendable {
         let t = parts.filter { $0.type == "reasoning" }.map(\.text).joined(separator: "\n")
         return t.isEmpty ? nil : t
     }
+
+    /// True for an assistant turn made up entirely of tool calls, with no
+    /// accompanying text response — these collapse to a slim summary by default.
+    var isToolCallOnly: Bool {
+        guard role == .assistant else { return false }
+        let hasToolPart = parts.contains { $0.type == "tool" }
+        let hasText = parts.contains { $0.type == "text" && !$0.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+        return hasToolPart && !hasText
+    }
+
+    var toolCallCount: Int {
+        parts.filter { $0.type == "tool" }.count
+    }
 }
 
 struct ActivityItem: Identifiable, Equatable, Sendable {
@@ -107,6 +120,9 @@ struct ActivityItem: Identifiable, Equatable, Sendable {
     // Stable identity for live rows that transition in place (e.g. a tool part's
     // ID across running → completed/failed). Nil for one-shot rows that always append.
     var sourceID: String? = nil
+    // The transcript message this row was derived from, if any — lets the sidebar
+    // scroll to and expand the originating message when a row is clicked.
+    var messageID: String? = nil
 }
 
 struct PermissionRequest: Identifiable, Equatable, Sendable {

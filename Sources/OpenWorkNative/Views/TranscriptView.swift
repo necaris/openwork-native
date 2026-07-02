@@ -39,6 +39,13 @@ struct TranscriptView: View {
                         proxy.scrollTo(lastMessage.id, anchor: .bottom)
                     }
                 }
+                .onChange(of: appState.scrollToMessageID) {
+                    guard let messageID = appState.scrollToMessageID else { return }
+                    withAnimation {
+                        proxy.scrollTo(messageID, anchor: .center)
+                    }
+                    appState.scrollToMessageID = nil
+                }
             }
 
             Divider()
@@ -444,10 +451,20 @@ private struct SessionStatusHeader: View {
 }
 
 private struct MessageBubble: View {
+    @EnvironmentObject private var appState: AppState
     let message: TranscriptMessage
     let canRevert: Bool
     let onRetry: () -> Void
     let onEdit: () -> Void
+
+    private var isCollapsed: Bool {
+        message.isToolCallOnly && !appState.isMessageExpanded(message.id)
+    }
+
+    private var collapsedSummary: String {
+        let count = message.toolCallCount
+        return count == 1 ? "Tool call" : "\(count) tool calls"
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -499,18 +516,54 @@ private struct MessageBubble: View {
                 }
             }
 
-            Markdown(message.content)
-                .markdownTheme(message.role == .user ? .basic : .gitHub)
-                .markdownTextStyle(\.link) {
-                    ForegroundColor(.accentColor)
-                    UnderlineStyle(.single)
+            if isCollapsed {
+                Button {
+                    withAnimation { appState.toggleMessageExpanded(message.id) }
+                } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: "chevron.right")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Text(collapsedSummary)
+                            .font(.callout)
+                            .foregroundStyle(.secondary)
+                        Spacer()
+                    }
+                    .contentShape(Rectangle())
                 }
-                .markdownBlockStyle(\.codeBlock) { configuration in
-                    CopyableCodeBlock(configuration: configuration)
+                .buttonStyle(.plain)
+            } else {
+                if message.isToolCallOnly {
+                    Button {
+                        withAnimation { appState.toggleMessageExpanded(message.id) }
+                    } label: {
+                        HStack(spacing: 6) {
+                            Image(systemName: "chevron.down")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            Text(collapsedSummary)
+                                .font(.callout)
+                                .foregroundStyle(.secondary)
+                            Spacer()
+                        }
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
                 }
-                .textSelection(.enabled)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .lineLimit(nil)
+
+                Markdown(message.content)
+                    .markdownTheme(message.role == .user ? .basic : .gitHub)
+                    .markdownTextStyle(\.link) {
+                        ForegroundColor(.accentColor)
+                        UnderlineStyle(.single)
+                    }
+                    .markdownBlockStyle(\.codeBlock) { configuration in
+                        CopyableCodeBlock(configuration: configuration)
+                    }
+                    .textSelection(.enabled)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .lineLimit(nil)
+            }
 
             if let errorMessage = message.errorMessage, !errorMessage.isEmpty {
                 VStack(alignment: .leading, spacing: 4) {

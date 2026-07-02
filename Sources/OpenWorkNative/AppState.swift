@@ -18,6 +18,8 @@ final class AppState: ObservableObject {
         }
     }
     @Published var activity: [ActivityItem] = []
+    @Published var expandedMessageIDs: Set<String> = []
+    @Published var scrollToMessageID: String?
     @Published var permissionRequests: [PermissionRequest] = []
     @Published var changedFiles: [ChangedFile] = []
     @Published var inventory: [WorkspaceInventoryItem] = []
@@ -753,7 +755,7 @@ final class AppState: ObservableObject {
                 output: state?["output"]?.displayValue
             )
             upsertMessage(sessionID: sessionID, messageID: messageID, role: role, part: TranscriptMessagePart(id: partID, type: partType, text: toolText), streaming: streaming, isDelta: false)
-            upsertActivity(kind: .tool, title: tool, detail: toolActionDetail(event, fallback: messageID), state: status, sourceID: partID)
+            upsertActivity(kind: .tool, title: tool, detail: toolActionDetail(event, fallback: messageID), state: status, sourceID: partID, messageID: messageID)
         }
     }
 
@@ -992,20 +994,40 @@ final class AppState: ObservableObject {
     // same sourceID already exists, transition it in place (running → completed/failed)
     // instead of appending a new row. Keeps the existing id so SwiftUI preserves the
     // row (and its expansion state) rather than animating a fresh insert.
-    private func upsertActivity(kind: ActivityItem.Kind, title: String, detail: String, state: String, sourceID: String) {
+    private func upsertActivity(kind: ActivityItem.Kind, title: String, detail: String, state: String, sourceID: String, messageID: String? = nil) {
         if let index = activity.firstIndex(where: { $0.sourceID == sourceID && $0.kind == kind }) {
             var item = activity[index]
             item.title = title
             item.detail = detail
             item.state = state
+            item.messageID = messageID
             activity[index] = item
         } else {
             activity.insert(
-                ActivityItem(id: UUID(), kind: kind, title: title, detail: detail, state: state, sourceID: sourceID),
+                ActivityItem(id: UUID(), kind: kind, title: title, detail: detail, state: state, sourceID: sourceID, messageID: messageID),
                 at: 0
             )
             trimActivity()
         }
+    }
+
+    func isMessageExpanded(_ messageID: String) -> Bool {
+        expandedMessageIDs.contains(messageID)
+    }
+
+    func toggleMessageExpanded(_ messageID: String) {
+        if expandedMessageIDs.contains(messageID) {
+            expandedMessageIDs.remove(messageID)
+        } else {
+            expandedMessageIDs.insert(messageID)
+        }
+    }
+
+    // Called when a sidebar activity row is clicked: expands the originating
+    // message and asks the transcript to scroll to it.
+    func revealMessage(_ messageID: String) {
+        expandedMessageIDs.insert(messageID)
+        scrollToMessageID = messageID
     }
 
     private func trimActivity() {
