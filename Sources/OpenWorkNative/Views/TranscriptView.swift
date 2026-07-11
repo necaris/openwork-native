@@ -636,6 +636,18 @@ private struct MessageBubble: View {
         return parts.isEmpty ? nil : parts.joined(separator: " · ")
     }
 
+    // MARK: - HTML/Details Parser
+    
+    // MarkdownUI does not natively support HTML rendering (it explicitly maps .htmlBlock
+    // to plain text ParagraphViews). To cleanly render <details> blocks emitted by LLMs
+    // (e.g. for tool reasoning or lengthy traces) without breaking Markdown formatting
+    // or resorting to a heavy WKWebView, we use a lightweight linear scanner.
+    //
+    // This scanner splits the raw LLM output into .markdown and .details parts.
+    // .details parts map natively to SwiftUI DisclosureGroups, retaining Dynamic Type,
+    // VoiceOver support, and native animations, while the inner text remains fully Markdown.
+    // It safely ignores other HTML tags or angle brackets (like Swift generic <T>) that
+    // a full HTML DOM parser would trip over.
     private struct MessageContentPart: Identifiable {
         let id: Int
         enum Kind {
