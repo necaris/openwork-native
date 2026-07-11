@@ -5,7 +5,7 @@ import SwiftUI
 struct TranscriptView: View {
     @EnvironmentObject private var appState: AppState
     @State private var prompt = ""
-    @State private var promptHeight = PromptTextView.minHeight
+    @State private var promptHeight: CGFloat = 44
     @State private var editingMessageID: String?
 
     var body: some View {
@@ -194,8 +194,8 @@ struct TranscriptView: View {
 }
 
 private struct PromptTextView: View {
-    static let minHeight: CGFloat = 44
-    private static let maxHeight: CGFloat = 132
+    @ScaledMetric var minHeight: CGFloat = 44
+    @ScaledMetric var maxHeight: CGFloat = 132
 
     @Binding var text: String
     @Binding var height: CGFloat
@@ -204,8 +204,8 @@ private struct PromptTextView: View {
 
     var body: some View {
         ZStack(alignment: .topLeading) {
-            WrappingTextView(text: $text, height: $height, minHeight: Self.minHeight, maxHeight: Self.maxHeight, onSubmit: onSubmit)
-                .frame(height: height)
+            WrappingTextView(text: $text, height: $height, minHeight: minHeight, maxHeight: maxHeight, onSubmit: onSubmit)
+                .frame(height: max(height, minHeight))
 
             if text.isEmpty {
                 Text(placeholder)
@@ -551,18 +551,45 @@ private struct MessageBubble: View {
                     .buttonStyle(.plain)
                 }
 
-                Markdown(message.content)
-                    .markdownTheme(message.role == .user ? .basic : .gitHub)
-                    .markdownTextStyle(\.link) {
-                        ForegroundColor(.accentColor)
-                        UnderlineStyle(.single)
+                let parts = parseContent(message.content)
+                ForEach(parts) { part in
+                    switch part.kind {
+                    case .markdown(let text):
+                        Markdown(text)
+                            .markdownTheme(message.role == .user ? .basic : .gitHub)
+                            .markdownTextStyle {
+                                if message.role == .user {
+                                    FontSize(.em(1.15))
+                                }
+                            }
+                            .markdownTextStyle(\.link) {
+                                ForegroundColor(.accentColor)
+                                UnderlineStyle(.single)
+                            }
+                            .markdownBlockStyle(\.codeBlock) { configuration in
+                                CopyableCodeBlock(configuration: configuration)
+                            }
+                            .textSelection(.enabled)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .lineLimit(nil)
+                    case .details(let summary, let content):
+                        DisclosureGroup(summary) {
+                            Markdown(content)
+                                .markdownTheme(.gitHub)
+                                .markdownTextStyle(\.link) {
+                                    ForegroundColor(.accentColor)
+                                    UnderlineStyle(.single)
+                                }
+                                .markdownBlockStyle(\.codeBlock) { configuration in
+                                    CopyableCodeBlock(configuration: configuration)
+                                }
+                                .textSelection(.enabled)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .lineLimit(nil)
+                                .padding(.top, 4)
+                        }
                     }
-                    .markdownBlockStyle(\.codeBlock) { configuration in
-                        CopyableCodeBlock(configuration: configuration)
-                    }
-                    .textSelection(.enabled)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .lineLimit(nil)
+                }
             }
 
             if let errorMessage = message.errorMessage, !errorMessage.isEmpty {
@@ -607,6 +634,56 @@ private struct MessageBubble: View {
         if let cost = message.cost { parts.append(CountFormatter.usd(cost)) }
         if let latency = message.latency, latency > 0 { parts.append(CountFormatter.latency(latency)) }
         return parts.isEmpty ? nil : parts.joined(separator: " · ")
+    }
+
+    private struct MessageContentPart: Identifiable {
+        let id: Int
+        enum Kind {
+            case markdown(String)
+            case details(summary: String, content: String)
+        }
+        let kind: Kind
+    }
+
+    private func parseContent(_ text: String) -> [MessageContentPart] {
+        guard text.contains("<details>") else {
+            return [MessageContentPart(id: 0, kind: .markdown(text))]
+        }
+        
+        let pattern = "(?s)<details>\\s*<summary>(.*?)</summary>(.*?)</details>"
+        guard let regex = try? NSRegularExpression(pattern: pattern, options: []) else {
+            return [MessageContentPart(id: 0, kind: .markdown(text))]
+        }
+        
+        let nsString = text as NSString
+        let results = regex.matches(in: text, options: [], range: NSRange(location: 0, length: nsString.length))
+        
+        var parts: [MessageContentPart] = []
+        var lastIndex = 0
+        var idCounter = 0
+        
+        for result in results {
+            let before = nsString.substring(with: NSRange(location: lastIndex, length: result.range.location - lastIndex))
+            if !before.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                parts.append(MessageContentPart(id: idCounter, kind: .markdown(before)))
+                idCounter += 1
+            }
+            
+            let summary = nsString.substring(with: result.range(at: 1)).trimmingCharacters(in: .whitespacesAndNewlines)
+            let innerContent = nsString.substring(with: result.range(at: 2)).trimmingCharacters(in: .whitespacesAndNewlines)
+            
+            parts.append(MessageContentPart(id: idCounter, kind: .details(summary: summary, content: innerContent)))
+            idCounter += 1
+            
+            lastIndex = result.range.location + result.range.length
+        }
+        
+        let after = nsString.substring(with: NSRange(location: lastIndex, length: nsString.length - lastIndex))
+        if !after.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            parts.append(MessageContentPart(id: idCounter, kind: .markdown(after)))
+        }
+        
+        return parts
     }
 }
 

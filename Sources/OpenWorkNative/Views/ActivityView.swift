@@ -103,6 +103,7 @@ private struct ActivityRow: View {
     @EnvironmentObject private var appState: AppState
     let item: ActivityItem
     @State private var isExpanded = false
+    @ScaledMetric private var iconWidth: CGFloat = 14
 
     var body: some View {
         if item.kind == .tool {
@@ -119,7 +120,7 @@ private struct ActivityRow: View {
         HStack(alignment: .firstTextBaseline, spacing: 8) {
             Image(systemName: item.kind.symbolName)
                 .foregroundStyle(.secondary)
-                .frame(width: 14)
+                .frame(width: iconWidth)
             Text(item.title)
                 .font(.callout)
                 .lineLimit(1)
@@ -143,7 +144,7 @@ private struct ActivityRow: View {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
                 Image(systemName: item.kind.symbolName)
                     .foregroundStyle(.secondary)
-                    .frame(width: 14)
+                    .frame(width: iconWidth)
                 Text(item.title)
                     .font(.headline)
                     .lineLimit(1)

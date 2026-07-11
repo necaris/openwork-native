@@ -117,6 +117,11 @@ OpenCode accepts "always" but does not persist per-workspace rules itself.
       persistent rules keyed by `(workspace, tool, target)`.
 - [ ] If local: settings UI to view/revoke rules; auto-resolve on prompt.
 
+### P1 — markdown rendering and UI scaling
+
+- [x] `<details>` summary blocks in Markdown are not rendered correctly.
+- [x] Improve UI at non-default (increased) zoom levels.
+
 ### P2 — release hardening (`#1898b86`)
 
 - [ ] Get `swiftformat` + `swiftlint` available in CI and locally; the

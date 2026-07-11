@@ -2,7 +2,11 @@ import SwiftUI
 
 struct InventoryView: View {
     @EnvironmentObject private var appState: AppState
-    
+    @AppStorage("inventory.skillsExpanded") private var skillsExpanded = false
+    @AppStorage("inventory.commandsExpanded") private var commandsExpanded = true
+    @AppStorage("inventory.pluginsExpanded") private var pluginsExpanded = true
+    @AppStorage("inventory.mcpExpanded") private var mcpExpanded = true
+
     var body: some View {
         List {
             if appState.inventory.isEmpty {
@@ -13,16 +17,28 @@ struct InventoryView: View {
                 ForEach(WorkspaceInventoryKind.allCases, id: \.rawValue) { kind in
                     let items = appState.inventory.filter { $0.kind == kind }
                     if !items.isEmpty {
-                        Section("\(kind.rawValue) (\(items.count))") {
+                        Section(isExpanded: binding(for: kind)) {
                             ForEach(items) { item in
                                 InventoryRow(item: item)
                             }
+                        } header: {
+                            Text("\(kind.rawValue) (\(items.count))")
                         }
                     }
                 }
             }
         }
+        .listStyle(.sidebar)
         .navigationTitle("Inventory")
+    }
+
+    private func binding(for kind: WorkspaceInventoryKind) -> Binding<Bool> {
+        switch kind {
+        case .skill: $skillsExpanded
+        case .command: $commandsExpanded
+        case .plugin: $pluginsExpanded
+        case .mcp: $mcpExpanded
+        }
     }
 }
 
@@ -77,12 +93,13 @@ private struct InventoryRow: View {
 private struct InventoryStatusBadge: View {
     let status: String
     let detail: String?
+    @ScaledMetric private var dotSize: CGFloat = 7
 
     var body: some View {
         HStack(spacing: 4) {
             Circle()
                 .fill(color)
-                .frame(width: 7, height: 7)
+                .frame(width: dotSize, height: dotSize)
             Text(status)
                 .font(.caption2)
                 .foregroundStyle(.secondary)
