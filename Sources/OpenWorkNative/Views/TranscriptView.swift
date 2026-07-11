@@ -646,41 +646,88 @@ private struct MessageBubble: View {
     }
 
     private func parseContent(_ text: String) -> [MessageContentPart] {
-        guard text.contains("<details>") else {
-            return [MessageContentPart(id: 0, kind: .markdown(text))]
-        }
-        
-        let pattern = "(?s)<details>\\s*<summary>(.*?)</summary>(.*?)</details>"
-        guard let regex = try? NSRegularExpression(pattern: pattern, options: []) else {
-            return [MessageContentPart(id: 0, kind: .markdown(text))]
-        }
-        
-        let nsString = text as NSString
-        let results = regex.matches(in: text, options: [], range: NSRange(location: 0, length: nsString.length))
-        
         var parts: [MessageContentPart] = []
-        var lastIndex = 0
+        var currentIndex = text.startIndex
         var idCounter = 0
         
-        for result in results {
-            let before = nsString.substring(with: NSRange(location: lastIndex, length: result.range.location - lastIndex))
-            if !before.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                parts.append(MessageContentPart(id: idCounter, kind: .markdown(before)))
-                idCounter += 1
+        while currentIndex < text.endIndex {
+            if let detailsRange = text[currentIndex...].range(of: "<details", options: [.caseInsensitive]) {
+                let beforeText = String(text[currentIndex..<detailsRange.lowerBound])
+                if !beforeText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    parts.append(MessageContentPart(id: idCounter, kind: .markdown(beforeText)))
+                    idCounter += 1
+                }
+                
+                if let tagEndRange = text[detailsRange.upperBound...].range(of: ">") {
+                    let contentStart = tagEndRange.upperBound
+                    var searchIndex = contentStart
+                    var depth = 1
+                    var closingDetailsRange: Range<String.Index>? = nil
+                    
+                    while searchIndex < text.endIndex {
+                        let nextOpen = text[searchIndex...].range(of: "<details", options: [.caseInsensitive])
+                        let nextClose = text[searchIndex...].range(of: "</details>", options: [.caseInsensitive])
+                        
+                        if let close = nextClose {
+                            if let open = nextOpen, open.lowerBound < close.lowerBound {
+                                depth += 1
+                                searchIndex = text.index(after: open.lowerBound)
+                            } else {
+                                depth -= 1
+                                if depth == 0 {
+                                    closingDetailsRange = close
+                                    break
+                                } else {
+                                    searchIndex = close.upperBound
+                                }
+                            }
+                        } else {
+                            break
+                        }
+                    }
+                    
+                    if let closeRange = closingDetailsRange {
+                        let innerText = String(text[contentStart..<closeRange.lowerBound])
+                        var summary = "Details"
+                        var innerContent = innerText
+                        
+                        if let summaryOpen = innerText.range(of: "<summary", options: [.caseInsensitive]),
+                           let summaryTagEnd = innerText[summaryOpen.upperBound...].range(of: ">"),
+                           let summaryClose = innerText[summaryTagEnd.upperBound...].range(of: "</summary>", options: [.caseInsensitive]) {
+                            
+                            summary = String(innerText[summaryTagEnd.upperBound..<summaryClose.lowerBound]).trimmingCharacters(in: .whitespacesAndNewlines)
+                            innerContent = String(innerText[summaryClose.upperBound...]).trimmingCharacters(in: .whitespacesAndNewlines)
+                        } else {
+                            innerContent = innerText.trimmingCharacters(in: .whitespacesAndNewlines)
+                        }
+                        
+                        parts.append(MessageContentPart(id: idCounter, kind: .details(summary: summary, content: innerContent)))
+                        idCounter += 1
+                        currentIndex = closeRange.upperBound
+                    } else {
+                        let remaining = String(text[detailsRange.lowerBound...])
+                        parts.append(MessageContentPart(id: idCounter, kind: .markdown(remaining)))
+                        idCounter += 1
+                        break
+                    }
+                } else {
+                    let remaining = String(text[detailsRange.lowerBound...])
+                    parts.append(MessageContentPart(id: idCounter, kind: .markdown(remaining)))
+                    idCounter += 1
+                    break
+                }
+            } else {
+                let remaining = String(text[currentIndex...])
+                if !remaining.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    parts.append(MessageContentPart(id: idCounter, kind: .markdown(remaining)))
+                    idCounter += 1
+                }
+                break
             }
-            
-            let summary = nsString.substring(with: result.range(at: 1)).trimmingCharacters(in: .whitespacesAndNewlines)
-            let innerContent = nsString.substring(with: result.range(at: 2)).trimmingCharacters(in: .whitespacesAndNewlines)
-            
-            parts.append(MessageContentPart(id: idCounter, kind: .details(summary: summary, content: innerContent)))
-            idCounter += 1
-            
-            lastIndex = result.range.location + result.range.length
         }
         
-        let after = nsString.substring(with: NSRange(location: lastIndex, length: nsString.length - lastIndex))
-        if !after.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            parts.append(MessageContentPart(id: idCounter, kind: .markdown(after)))
+        if parts.isEmpty {
+            parts.append(MessageContentPart(id: 0, kind: .markdown(text)))
         }
         
         return parts
