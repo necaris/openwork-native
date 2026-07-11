@@ -53,6 +53,8 @@ import Testing
 }
 
 @Test func loadMessagesMapsToolPartsAndErrorNameFallback() async throws {
+    // Real OpenCode messages have no "tool_call"/"tool_result" part types — a tool
+    // invocation is a single "tool" part shaped {tool, state: {status, title, output}}.
     let networking = MockNetworking(data: #"""
     [
       {
@@ -63,8 +65,7 @@ import Testing
           "error": { "name": "ToolError" }
         },
         "parts": [
-          { "id": "call_1", "type": "tool_call", "toolCall": { "name": "bash" } },
-          { "id": "result_1", "type": "tool_result", "toolResult": { "text": null } }
+          { "id": "call_1", "type": "tool", "tool": "bash", "state": { "status": "completed", "output": "No output" } }
         ]
       }
     ]
@@ -75,8 +76,11 @@ import Testing
 
     #expect(message.id == "msg_tool")
     #expect(message.parts == [
-        TranscriptMessagePart(id: "call_1", type: "tool_call", text: "bash"),
-        TranscriptMessagePart(id: "result_1", type: "tool_result", text: "No output")
+        TranscriptMessagePart(
+            id: "call_1",
+            type: "tool",
+            text: TranscriptMessagePart.toolCallText(tool: "bash", title: nil, status: "completed", output: "No output")
+        )
     ])
     #expect(message.errorMessage == "ToolError")
     #expect(message.latency == 1.25)
