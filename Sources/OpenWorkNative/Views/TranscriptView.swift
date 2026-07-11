@@ -551,7 +551,7 @@ private struct MessageBubble: View {
                     .buttonStyle(.plain)
                 }
 
-                let parts = parseContent(message.content)
+                let parts = MessageContentParser.parse(message.content)
                 ForEach(parts) { part in
                     switch part.kind {
                     case .markdown(let text):
@@ -636,50 +636,57 @@ private struct MessageBubble: View {
         return parts.isEmpty ? nil : parts.joined(separator: " · ")
     }
 
-    // MARK: - HTML/Details Parser
-    
-    // MarkdownUI does not natively support HTML rendering (it explicitly maps .htmlBlock
-    // to plain text ParagraphViews). To cleanly render <details> blocks emitted by LLMs
-    // (e.g. for tool reasoning or lengthy traces) without breaking Markdown formatting
-    // or resorting to a heavy WKWebView, we use a lightweight linear scanner.
-    //
-    // This scanner splits the raw LLM output into .markdown and .details parts.
-    // .details parts map natively to SwiftUI DisclosureGroups, retaining Dynamic Type,
-    // VoiceOver support, and native animations, while the inner text remains fully Markdown.
-    // It safely ignores other HTML tags or angle brackets (like Swift generic <T>) that
-    // a full HTML DOM parser would trip over.
-    private struct MessageContentPart: Identifiable {
-        let id: Int
-        enum Kind {
-            case markdown(String)
-            case details(summary: String, content: String)
-        }
-        let kind: Kind
-    }
+}
 
-    private func parseContent(_ text: String) -> [MessageContentPart] {
+// MARK: - HTML/Details Parser
+
+// MarkdownUI does not natively support HTML rendering (it explicitly maps .htmlBlock
+// to plain text ParagraphViews). To cleanly render <details> blocks emitted by LLMs
+// (e.g. for tool reasoning or lengthy traces) without breaking Markdown formatting
+// or resorting to a heavy WKWebView, we use a lightweight linear scanner.
+//
+// This scanner splits the raw LLM output into .markdown and .details parts.
+// .details parts map natively to SwiftUI DisclosureGroups, retaining Dynamic Type,
+// VoiceOver support, and native animations, while the inner text remains fully Markdown.
+// It safely ignores other HTML tags or angle brackets (like Swift generic <T>) that
+// a full HTML DOM parser would trip over.
+//
+// `internal` (not `private`) so it can be exercised directly from tests via
+// `@testable import` — access control cannot widen past a private enclosing type,
+// so this lives at file scope rather than nested inside MessageBubble.
+struct MessageContentPart: Identifiable, Equatable {
+    let id: Int
+    enum Kind: Equatable {
+        case markdown(String)
+        case details(summary: String, content: String)
+    }
+    let kind: Kind
+}
+
+enum MessageContentParser {
+    static func parse(_ text: String) -> [MessageContentPart] {
         var parts: [MessageContentPart] = []
         var currentIndex = text.startIndex
         var idCounter = 0
-        
+
         while currentIndex < text.endIndex {
-            if let detailsRange = text[currentIndex...].range(of: "<details", options: [.caseInsensitive]) {
+            if let detailsRange = firstRealDetailsTag(in: text, from: currentIndex) {
                 let beforeText = String(text[currentIndex..<detailsRange.lowerBound])
                 if !beforeText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                     parts.append(MessageContentPart(id: idCounter, kind: .markdown(beforeText)))
                     idCounter += 1
                 }
-                
+
                 if let tagEndRange = text[detailsRange.upperBound...].range(of: ">") {
                     let contentStart = tagEndRange.upperBound
                     var searchIndex = contentStart
                     var depth = 1
                     var closingDetailsRange: Range<String.Index>? = nil
-                    
+
                     while searchIndex < text.endIndex {
                         let nextOpen = text[searchIndex...].range(of: "<details", options: [.caseInsensitive])
                         let nextClose = text[searchIndex...].range(of: "</details>", options: [.caseInsensitive])
-                        
+
                         if let close = nextClose {
                             if let open = nextOpen, open.lowerBound < close.lowerBound {
                                 depth += 1
@@ -697,22 +704,22 @@ private struct MessageBubble: View {
                             break
                         }
                     }
-                    
+
                     if let closeRange = closingDetailsRange {
                         let innerText = String(text[contentStart..<closeRange.lowerBound])
                         var summary = "Details"
                         var innerContent = innerText
-                        
+
                         if let summaryOpen = innerText.range(of: "<summary", options: [.caseInsensitive]),
                            let summaryTagEnd = innerText[summaryOpen.upperBound...].range(of: ">"),
                            let summaryClose = innerText[summaryTagEnd.upperBound...].range(of: "</summary>", options: [.caseInsensitive]) {
-                            
+
                             summary = String(innerText[summaryTagEnd.upperBound..<summaryClose.lowerBound]).trimmingCharacters(in: .whitespacesAndNewlines)
                             innerContent = String(innerText[summaryClose.upperBound...]).trimmingCharacters(in: .whitespacesAndNewlines)
                         } else {
                             innerContent = innerText.trimmingCharacters(in: .whitespacesAndNewlines)
                         }
-                        
+
                         parts.append(MessageContentPart(id: idCounter, kind: .details(summary: summary, content: innerContent)))
                         idCounter += 1
                         currentIndex = closeRange.upperBound
@@ -737,12 +744,33 @@ private struct MessageBubble: View {
                 break
             }
         }
-        
+
         if parts.isEmpty {
             parts.append(MessageContentPart(id: 0, kind: .markdown(text)))
         }
-        
+
         return parts
+    }
+
+    // LLMs frequently mention `<details>` inside inline code as prose (e.g. explaining
+    // how to write one), which is indistinguishable from a real opening tag by substring
+    // search alone. Skip candidates that fall inside an odd-length run of backticks since
+    // the start of their line, so only genuine HTML tags are treated as details blocks.
+    private static func firstRealDetailsTag(in text: String, from start: String.Index) -> Range<String.Index>? {
+        var searchFrom = start
+        while let candidate = text[searchFrom...].range(of: "<details", options: [.caseInsensitive]) {
+            if !isInsideInlineCode(text, at: candidate.lowerBound) {
+                return candidate
+            }
+            searchFrom = candidate.upperBound
+        }
+        return nil
+    }
+
+    private static func isInsideInlineCode(_ text: String, at index: String.Index) -> Bool {
+        let lineStart = text[text.startIndex..<index].lastIndex(of: "\n").map(text.index(after:)) ?? text.startIndex
+        let backtickCount = text[lineStart..<index].filter { $0 == "`" }.count
+        return backtickCount % 2 == 1
     }
 }
 
