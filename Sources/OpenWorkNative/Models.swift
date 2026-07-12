@@ -117,6 +117,9 @@ struct ActivityItem: Identifiable, Equatable, Sendable {
     var title: String
     var detail: String
     var state: String
+    // The session that produced this record. Workspace/runtime events intentionally
+    // leave this nil so the activity inspector can show them separately.
+    var sessionID: String? = nil
     // Stable identity for live rows that transition in place (e.g. a tool part's
     // ID across running → completed/failed). Nil for one-shot rows that always append.
     var sourceID: String? = nil

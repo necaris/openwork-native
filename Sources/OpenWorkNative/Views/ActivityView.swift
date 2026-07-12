@@ -55,9 +55,19 @@ struct ActivityView: View {
                 }
             }
 
-            Section("Activity") {
-                ForEach(appState.activity) { item in
-                    ActivityRow(item: item)
+            if !generalActivity.isEmpty {
+                Section("Activity") {
+                    ForEach(generalActivity) { item in
+                        ActivityRow(item: item)
+                    }
+                }
+            }
+
+            ForEach(sessionActivityGroups) { group in
+                Section("Activity · \(group.title)") {
+                    ForEach(group.items) { item in
+                        ActivityRow(item: item)
+                    }
                 }
             }
 
@@ -97,6 +107,32 @@ struct ActivityView: View {
         }
         .navigationTitle("Activity")
     }
+
+    private var generalActivity: [ActivityItem] {
+        appState.activity.filter { $0.sessionID == nil }
+    }
+
+    private var sessionActivityGroups: [ActivitySessionGroup] {
+        var sessionIDs: [String] = []
+        for item in appState.activity {
+            guard let sessionID = item.sessionID, !sessionIDs.contains(sessionID) else { continue }
+            sessionIDs.append(sessionID)
+        }
+        return sessionIDs.map { sessionID in
+            let title = appState.sessions.first(where: { $0.id == sessionID })?.title ?? sessionID
+            return ActivitySessionGroup(
+                id: sessionID,
+                title: title,
+                items: appState.activity.filter { $0.sessionID == sessionID }
+            )
+        }
+    }
+}
+
+private struct ActivitySessionGroup: Identifiable {
+    let id: String
+    let title: String
+    let items: [ActivityItem]
 }
 
 private struct ActivityRow: View {

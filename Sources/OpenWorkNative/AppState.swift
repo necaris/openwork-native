@@ -289,7 +289,7 @@ final class AppState: ObservableObject {
             TranscriptMessage(id: "stream-\(UUID().uuidString)", role: .assistant, parts: [], date: Date(), isStreaming: true, model: modelOverride)
         )
         sessions[index].isRunning = true
-        appendActivity(kind: .step, title: "Prompt sent", detail: trimmedPrompt, state: "Running")
+        appendActivity(kind: .step, title: "Prompt sent", detail: trimmedPrompt, state: "Running", sessionID: sessionID)
 
         Task {
             do {
@@ -358,7 +358,7 @@ final class AppState: ObservableObject {
                 presentError("Could not stop session", error)
             }
             markSession(sessionID, running: false)
-            appendActivity(kind: .step, title: "Session stopped", detail: selectedSession?.title ?? sessionID, state: "Stopped")
+            appendActivity(kind: .step, title: "Session stopped", detail: selectedSession?.title ?? sessionID, state: "Stopped", sessionID: sessionID)
         }
     }
 
@@ -367,7 +367,7 @@ final class AppState: ObservableObject {
             do {
                 try await client?.replyPermission(sessionID: request.sessionID, permissionID: request.id, decision: decision)
                 permissionRequests.removeAll { $0.id == request.id }
-                appendActivity(kind: .tool, title: "Permission \(decision.displayName)", detail: request.action, state: decision.displayName)
+                appendActivity(kind: .tool, title: "Permission \(decision.displayName)", detail: request.action, state: decision.displayName, sessionID: request.sessionID)
             } catch {
                 presentError("Could not resolve permission", error)
             }
@@ -440,7 +440,7 @@ final class AppState: ObservableObject {
         if let index = sessions.firstIndex(where: { $0.id == session.id }) {
             sessions[index].model = model
         }
-        appendActivity(kind: .runtime, title: "Session model changed", detail: modelID, state: "Updated")
+        appendActivity(kind: .runtime, title: "Session model changed", detail: modelID, state: "Updated", sessionID: session.id)
     }
 
     private func sessionModel(from modelID: String) -> SessionModel? {
@@ -655,7 +655,7 @@ final class AppState: ObservableObject {
             applyModelSwitched(event)
         case "session.next.agent.switched":
             if let agent = event.properties["agent"]?.stringValue {
-                appendActivity(kind: .runtime, title: "Agent switched", detail: agent, state: agent)
+                appendActivity(kind: .runtime, title: "Agent switched", detail: agent, state: agent, sessionID: event.sessionID)
             }
         case "session.error":
             let detail = event.sessionErrorMessage
@@ -664,7 +664,7 @@ final class AppState: ObservableObject {
                 attachSessionError(detail, to: sessionID)
                 markSession(sessionID, running: false)
             }
-            appendActivity(kind: .step, title: "Session error", detail: detail, state: "Failed")
+            appendActivity(kind: .step, title: "Session error", detail: detail, state: "Failed", sessionID: sessionID)
         case "permission.asked":
             if let request = event.permissionRequest {
                 upsertPermission(request)
@@ -675,7 +675,11 @@ final class AppState: ObservableObject {
             }
         case "todo.updated":
             if let todos = event.todos {
-                activity.insert(contentsOf: todos, at: 0)
+                activity.insert(contentsOf: todos.map { todo in
+                    var todo = todo
+                    todo.sessionID = event.sessionID
+                    return todo
+                }, at: 0)
                 trimActivity()
             }
         case "file.edited", "file.watcher.updated", "session.diff":
@@ -755,7 +759,7 @@ final class AppState: ObservableObject {
                 output: state?["output"]?.displayValue
             )
             upsertMessage(sessionID: sessionID, messageID: messageID, role: role, part: TranscriptMessagePart(id: partID, type: partType, text: toolText), streaming: streaming, isDelta: false)
-            upsertActivity(kind: .tool, title: tool, detail: toolActionDetail(event, fallback: messageID), state: status, sourceID: partID, messageID: messageID)
+            upsertActivity(kind: .tool, title: tool, detail: toolActionDetail(event, fallback: messageID), state: status, sessionID: sessionID, sourceID: partID, messageID: messageID)
         }
     }
 
@@ -813,7 +817,7 @@ final class AppState: ObservableObject {
             let previous = sessions[index].model?.modelID
             sessions[index].model = SessionModel(modelID: modelID, providerID: providerID)
             let detail = previous.map { "\($0) → \(modelID)" } ?? modelID
-            appendActivity(kind: .runtime, title: "Model switched", detail: detail, state: modelID)
+            appendActivity(kind: .runtime, title: "Model switched", detail: detail, state: modelID, sessionID: sessionID)
         }
     }
 
@@ -982,9 +986,9 @@ final class AppState: ObservableObject {
         workspaceStore.saveLastSessionID(selectedSessionID, for: currentWorkspace)
     }
 
-    private func appendActivity(kind: ActivityItem.Kind, title: String, detail: String, state: String) {
+    private func appendActivity(kind: ActivityItem.Kind, title: String, detail: String, state: String, sessionID: String? = nil) {
         activity.insert(
-            ActivityItem(id: UUID(), kind: kind, title: title, detail: detail, state: state),
+            ActivityItem(id: UUID(), kind: kind, title: title, detail: detail, state: state, sessionID: sessionID),
             at: 0
         )
         trimActivity()
@@ -994,17 +998,18 @@ final class AppState: ObservableObject {
     // same sourceID already exists, transition it in place (running → completed/failed)
     // instead of appending a new row. Keeps the existing id so SwiftUI preserves the
     // row (and its expansion state) rather than animating a fresh insert.
-    private func upsertActivity(kind: ActivityItem.Kind, title: String, detail: String, state: String, sourceID: String, messageID: String? = nil) {
+    private func upsertActivity(kind: ActivityItem.Kind, title: String, detail: String, state: String, sessionID: String?, sourceID: String, messageID: String? = nil) {
         if let index = activity.firstIndex(where: { $0.sourceID == sourceID && $0.kind == kind }) {
             var item = activity[index]
             item.title = title
             item.detail = detail
             item.state = state
+            item.sessionID = sessionID
             item.messageID = messageID
             activity[index] = item
         } else {
             activity.insert(
-                ActivityItem(id: UUID(), kind: kind, title: title, detail: detail, state: state, sourceID: sourceID, messageID: messageID),
+                ActivityItem(id: UUID(), kind: kind, title: title, detail: detail, state: state, sessionID: sessionID, sourceID: sourceID, messageID: messageID),
                 at: 0
             )
             trimActivity()

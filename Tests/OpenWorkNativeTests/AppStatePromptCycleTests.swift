@@ -70,6 +70,7 @@ import Testing
     #expect(state.sessions[0].messages[1].role == .assistant)
     #expect(state.sessions[0].messages[1].isStreaming)
     #expect(state.sessions[0].messages[1].id.hasPrefix("stream-"))
+    #expect(state.activity.first?.sessionID == "ses_1")
 
     // 1. server echoes the user message (no text yet — info only)
     state.apply(messageUpdated(sessionID: "ses_1", messageID: "msg_u", role: "user"))
