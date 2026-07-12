@@ -402,6 +402,36 @@ private struct SessionStatusHeader: View {
 
     var body: some View {
         HStack(spacing: 12) {
+            Menu {
+                Button("New Session", systemImage: "plus") {
+                    appState.createSession()
+                }
+                .disabled(appState.currentWorkspace == nil || appState.runtimeStatus != .running)
+
+                Divider()
+
+                Picker("Session", selection: $appState.selectedSessionID) {
+                    ForEach(appState.sessions) { availableSession in
+                        Text(availableSession.title)
+                            .tag(Optional(availableSession.id))
+                    }
+                }
+            } label: {
+                Label(session.title, systemImage: "bubble.left.and.bubble.right")
+                    .lineLimit(1)
+            }
+            .menuStyle(.borderlessButton)
+            .help("Switch session or create a new one")
+
+            Button {
+                appState.createSession()
+            } label: {
+                Image(systemName: "plus")
+            }
+            .buttonStyle(.bordered)
+            .help("New Session")
+            .disabled(appState.currentWorkspace == nil || appState.runtimeStatus != .running)
+
             if let model = appState.displayModel(for: session) {
                 Text("\(model.modelID) · \(model.providerID)")
                     .font(.caption)
