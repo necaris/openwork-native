@@ -257,15 +257,15 @@ final class AppState: ObservableObject {
     }
 
     func createSession() {
-        guard client != nil else {
+        guard let client else {
             AppLog.state.error("createSession: no client")
             return
         }
-        AppLog.state.log("createSession requested")
+        let title = currentWorkspace?.displayName ?? "New Session"
+        AppLog.state.log("createSession requested title=\(title, privacy: .public)")
         Task {
             do {
-                guard let client else { return }
-                let session = try await client.createSession()
+                let session = try await client.createSession(title: title)
                 AppLog.state.log("createSession ok id=\(session.id, privacy: .public)")
                 sessions.insert(session, at: 0)
                 selectedSessionID = session.id

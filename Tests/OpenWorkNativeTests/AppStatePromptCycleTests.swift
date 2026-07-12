@@ -28,6 +28,24 @@ import Testing
 }
 
 @MainActor
+@Test func createSessionUsesWorkspaceNameAsItsDefaultTitle() async throws {
+    let state = makeState()
+    let mock = state.client!.networking as! RecordingNetworking
+    mock.nextStatusCode = 200
+    mock.nextResponseBody = #"""
+    { "id": "ses_new", "title": "workspace", "time": { "created": 1779918764975 } }
+    """#.data(using: .utf8)!
+
+    state.createSession()
+    try await waitForRequest(matching: { $0.url?.path == "/session" }, in: mock)
+
+    let request = try #require(mock.requests.last { $0.url?.path == "/session" })
+    let body = try JSONSerialization.jsonObject(with: try #require(request.httpBody)) as? [String: Any]
+    #expect(body?["title"] as? String == "workspace")
+    #expect(state.selectedSessionID == "ses_new")
+}
+
+@MainActor
 @Test func sseEventStreamUrlIncludesDirectoryQuery() {
     let state = makeState()
     let request = state.client!.makeEventRequest()

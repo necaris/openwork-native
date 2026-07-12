@@ -40,7 +40,7 @@ struct OpenCodeClient: Sendable {
         return sessions.map(\.appModel)
     }
 
-    func createSession(title: String = "New Session") async throws -> OpenCodeSession {
+    func createSession(title: String) async throws -> OpenCodeSession {
         let session: APISession = try await post(path: "/session", body: CreateSessionBody(title: title), expectedStatus: 200)
         return session.appModel
     }
