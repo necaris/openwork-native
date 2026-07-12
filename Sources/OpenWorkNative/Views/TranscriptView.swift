@@ -95,42 +95,13 @@ struct TranscriptView: View {
                     onSubmit: sendFromKeyboard
                 )
 
-                Menu {
-                    if !commandItems.isEmpty {
-                        Section("Commands") {
-                            ForEach(commandItems) { command in
-                                Button(command.slashCommand ?? command.name) {
-                                    insertCommand(command)
-                                }
-                            }
-                        }
-                    }
-                    if !skillItems.isEmpty {
-                        Section("Skills") {
-                            ForEach(skillItems) { skill in
-                                Button(skill.slashCommand ?? skill.name) {
-                                    insertCommand(skill)
-                                }
-                            }
-                        }
-                    }
-                } label: {
-                    Image(systemName: "terminal")
-                }
-                .keyboardShortcut("/", modifiers: .command)
-                .help("Commands and skills")
-                .disabled(commandItems.isEmpty && skillItems.isEmpty)
-
-                Button("Send") {
-                    send()
-                }
-                .keyboardShortcut(.return, modifiers: .command)
-                .disabled(!canSend)
-
-                Button("Stop") {
-                    appState.stopSelectedSession()
-                }
-                .disabled(appState.selectedSession?.isRunning != true)
+                ComposerActions(
+                    height: max(promptHeight, 52),
+                    canSend: canSend,
+                    isRunning: appState.selectedSession?.isRunning == true,
+                    send: send,
+                    stop: appState.stopSelectedSession
+                )
             }
             .padding()
         }
@@ -194,8 +165,8 @@ struct TranscriptView: View {
 }
 
 private struct PromptTextView: View {
-    @ScaledMetric var minHeight: CGFloat = 44
-    @ScaledMetric var maxHeight: CGFloat = 132
+    @ScaledMetric var minHeight: CGFloat = 52
+    @ScaledMetric var maxHeight: CGFloat = 156
 
     @Binding var text: String
     @Binding var height: CGFloat
@@ -209,9 +180,10 @@ private struct PromptTextView: View {
 
             if text.isEmpty {
                 Text(placeholder)
+                    .font(.system(size: 15))
                     .foregroundStyle(.tertiary)
                     .padding(.horizontal, 8)
-                    .padding(.vertical, 10)
+                    .padding(.vertical, 12)
                     .allowsHitTesting(false)
             }
         }
@@ -222,6 +194,38 @@ private struct PromptTextView: View {
             RoundedRectangle(cornerRadius: 6)
                 .stroke(Color(nsColor: .separatorColor), lineWidth: 0.75)
         }
+    }
+}
+
+private struct ComposerActions: View {
+    let height: CGFloat
+    let canSend: Bool
+    let isRunning: Bool
+    let send: () -> Void
+    let stop: () -> Void
+
+    var body: some View {
+        VStack(spacing: 6) {
+            Button(action: send) {
+                Image(systemName: "paperplane.fill")
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(.blue)
+            .keyboardShortcut(.return, modifiers: .command)
+            .help("Send prompt (Command-Return)")
+            .disabled(!canSend)
+
+            Button(action: stop) {
+                Image(systemName: "stop.fill")
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(.red)
+            .help("Stop session")
+            .disabled(!isRunning)
+        }
+        .frame(width: 42, height: height)
     }
 }
 
@@ -248,7 +252,7 @@ private struct WrappingTextView: NSViewRepresentable {
         textView.delegate = context.coordinator
         textView.onPlainReturn = { context.coordinator.submit() }
         textView.string = text
-        textView.font = .preferredFont(forTextStyle: .body)
+        textView.font = .systemFont(ofSize: 15)
         textView.textColor = .labelColor
         textView.drawsBackground = false
         textView.isRichText = false
@@ -257,7 +261,7 @@ private struct WrappingTextView: NSViewRepresentable {
         textView.isHorizontallyResizable = false
         textView.isVerticallyResizable = true
         textView.autoresizingMask = [.width]
-        textView.textContainerInset = NSSize(width: 0, height: 8)
+        textView.textContainerInset = NSSize(width: 0, height: 10)
         textView.textContainer?.lineFragmentPadding = 0
         textView.textContainer?.widthTracksTextView = true
         textView.textContainer?.heightTracksTextView = false
