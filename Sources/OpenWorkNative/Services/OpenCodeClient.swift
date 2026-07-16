@@ -327,6 +327,27 @@ extension OpenCodeEvent {
         return rendered.isEmpty ? "Unknown error" : rendered
     }
 
+    // Same nested shape as sessionErrorMessage (error.data.message / error.message / error.name),
+    // but read from a `message.updated` event's `info.error`, which provider failures
+    // (e.g. OpenAI usage-limit errors) surface through instead of a top-level `session.error`.
+    static func messageInfoErrorMessage(from info: [String: JSONValue]) -> String? {
+        guard let error = info["error"] else { return nil }
+        if let text = error.stringValue, !text.isEmpty { return text }
+        if let object = error.objectValue {
+            if let message = object["data"]?.objectValue?["message"]?.stringValue, !message.isEmpty {
+                return message
+            }
+            if let message = object["message"]?.stringValue, !message.isEmpty {
+                return message
+            }
+            if let name = object["name"]?.stringValue, !name.isEmpty {
+                return name
+            }
+        }
+        let rendered = error.displayValue
+        return rendered.isEmpty ? nil : rendered
+    }
+
     var permissionRequest: PermissionRequest? {
         guard type == "permission.asked" else { return nil }
         let id = properties["id"]?.stringValue ?? UUID().uuidString

@@ -151,6 +151,26 @@ import Testing
 }
 
 @MainActor
+@Test func messageUpdatedErrorSurfacesAndClearsRunning() async {
+    // Some provider failures (e.g. OpenAI usage-limit errors) arrive only as a
+    // message.updated event carrying info.error, with no session.error and no
+    // time.completed/finish — this must not leave the UI hung with a silent spinner.
+    let state = makeState()
+    seedSession(state, sessionID: "ses_1")
+    state.selectedSessionID = "ses_1"
+    state.sendPrompt("hit the usage limit")
+    #expect(state.sessions[0].isRunning == true)
+
+    state.apply(messageUpdated(sessionID: "ses_1", messageID: "msg_u", role: "user"))
+    state.apply(messageUpdatedWithError(sessionID: "ses_1", messageID: "msg_a", message: "You exceeded your current quota."))
+
+    #expect(state.sessions[0].isRunning == false)
+    #expect(state.sessions[0].messages.allSatisfy { !$0.isStreaming })
+    let errored = state.sessions[0].messages.last { $0.errorMessage != nil }
+    #expect(errored?.errorMessage == "You exceeded your current quota.")
+}
+
+@MainActor
 @Test func toolPartActivityDetailShowsActionTaken() {
     let state = makeState()
     seedSession(state, sessionID: "ses_1")
@@ -344,6 +364,24 @@ private func messageUpdated(sessionID: String, messageID: String, role: String) 
           "sessionID": "\#(sessionID)",
           "role": "\#(role)",
           "time": { "created": 1779918764975 }
+        }
+      }
+    }
+    """#)
+}
+
+private func messageUpdatedWithError(sessionID: String, messageID: String, message: String) -> OpenCodeEvent {
+    decodeEvent(#"""
+    {
+      "type": "message.updated",
+      "properties": {
+        "sessionID": "\#(sessionID)",
+        "info": {
+          "id": "\#(messageID)",
+          "sessionID": "\#(sessionID)",
+          "role": "assistant",
+          "time": { "created": 1779918764975 },
+          "error": { "name": "APIError", "data": { "message": "\#(message)" } }
         }
       }
     }

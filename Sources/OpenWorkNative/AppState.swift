@@ -698,7 +698,18 @@ final class AppState: ObservableObject {
         let appRole: TranscriptMessage.Role = role == "assistant" ? .assistant : .user
         let isCompleted = info["time"]?.objectValue?["completed"] != nil || info["finish"] != nil
         let isStreaming = role == "assistant" && !isCompleted
-        
+
+        // Some provider failures (e.g. OpenAI usage-limit errors) surface only through
+        // message.updated's info.error rather than a top-level session.error event, and can
+        // omit time.completed/finish entirely — without this, the bubble spins forever with
+        // no visible error, unlike the clear error banner Anthropic failures already get.
+        if let detail = OpenCodeEvent.messageInfoErrorMessage(from: info) {
+            attachSessionError(detail, to: sessionID)
+            markSession(sessionID, running: false)
+            appendActivity(kind: .step, title: "Session error", detail: detail, state: "Failed", sessionID: sessionID)
+            return
+        }
+
         upsertMessage(sessionID: sessionID, messageID: messageID, role: appRole, part: nil, streaming: isStreaming)
     }
 
