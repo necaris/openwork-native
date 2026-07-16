@@ -39,6 +39,10 @@ struct OpenCodeSession: Identifiable, Equatable, Sendable {
     var cost: Double = 0
     var tokens: TokenUsage = TokenUsage()
     var model: SessionModel?
+    /// Transient, non-fatal status (e.g. "usage limit reached, retrying (attempt 3)") from a
+    /// `session.status` retry event — the provider is backing off and retrying on its own,
+    /// so this is informational, not an error attached to a message.
+    var statusNote: String?
 }
 
 struct TranscriptMessagePart: Identifiable, Equatable, Sendable {

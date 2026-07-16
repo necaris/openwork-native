@@ -12,6 +12,17 @@ struct TranscriptView: View {
         VStack(spacing: 0) {
             if let session = appState.sessions.first(where: { $0.id == appState.selectedSessionID }) {
                 SessionStatusHeader(session: session)
+                if let statusNote = session.statusNote {
+                    HStack(spacing: 6) {
+                        Image(systemName: "exclamationmark.triangle")
+                        Text(statusNote)
+                            .lineLimit(2)
+                    }
+                    .font(.caption)
+                    .foregroundStyle(.orange)
+                    .padding(.horizontal, 12)
+                    .padding(.bottom, 6)
+                }
                 Divider()
             }
             ScrollViewReader { proxy in

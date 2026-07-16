@@ -171,6 +171,27 @@ import Testing
 }
 
 @MainActor
+@Test func sessionStatusRetrySurfacesNoteWithoutStoppingSession() async {
+    // OpenAI usage-limit errors observed in practice arrive as session.status events with
+    // status.type "retry" (the server backs off and retries on its own) — never as
+    // session.error or message.updated's info.error. This must surface visibly instead of
+    // silently flipping isRunning off with no explanation.
+    let state = makeState()
+    seedSession(state, sessionID: "ses_1")
+    state.selectedSessionID = "ses_1"
+    state.sendPrompt("hit the usage limit")
+    #expect(state.sessions[0].isRunning == true)
+
+    state.apply(sessionStatusRetry(sessionID: "ses_1", attempt: 1, message: "The usage limit has been reached"))
+
+    #expect(state.sessions[0].isRunning == true)
+    #expect(state.sessions[0].statusNote == "The usage limit has been reached (attempt 1)")
+
+    state.apply(sessionStatusBusy(sessionID: "ses_1"))
+    #expect(state.sessions[0].statusNote == nil)
+}
+
+@MainActor
 @Test func toolPartActivityDetailShowsActionTaken() {
     let state = makeState()
     seedSession(state, sessionID: "ses_1")
@@ -351,6 +372,30 @@ private func waitForRequest(matching predicate: @escaping (URLRequest) -> Bool, 
 private func decodeEvent(_ json: String) -> OpenCodeEvent {
     let data = json.data(using: .utf8)!
     return try! JSONDecoder().decode(OpenCodeEvent.self, from: data)
+}
+
+private func sessionStatusRetry(sessionID: String, attempt: Int, message: String) -> OpenCodeEvent {
+    decodeEvent(#"""
+    {
+      "type": "session.status",
+      "properties": {
+        "sessionID": "\#(sessionID)",
+        "status": { "type": "retry", "attempt": \#(attempt), "message": "\#(message)", "next": 1784208627076 }
+      }
+    }
+    """#)
+}
+
+private func sessionStatusBusy(sessionID: String) -> OpenCodeEvent {
+    decodeEvent(#"""
+    {
+      "type": "session.status",
+      "properties": {
+        "sessionID": "\#(sessionID)",
+        "status": { "type": "busy" }
+      }
+    }
+    """#)
 }
 
 private func messageUpdated(sessionID: String, messageID: String, role: String) -> OpenCodeEvent {

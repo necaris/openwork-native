@@ -628,6 +628,7 @@ final class AppState: ObservableObject {
             do {
                 let event = try JSONDecoder().decode(OpenCodeEvent.self, from: data)
                 await MainActor.run {
+                    self.appendRawEventLog(eventText)
                     self.apply(event)
                 }
             } catch {
@@ -647,7 +648,21 @@ final class AppState: ObservableObject {
             applyMessagePartDelta(event)
         case "session.status", "session.idle":
             if let sessionID = event.sessionID {
-                markSession(sessionID, running: event.sessionStatus == "busy" && event.type != "session.idle")
+                if event.sessionStatus == "retry" {
+                    // Provider throttling (e.g. OpenAI usage-limit errors) surfaces here, not as
+                    // session.error or message.updated's info.error — the server is retrying on
+                    // its own, so this is a transient status note, not a terminal message error.
+                    let statusObject = event.properties["status"]?.objectValue
+                    let message = statusObject?["message"]?.stringValue ?? "Retrying…"
+                    let attempt = statusObject?["attempt"]?.intValue
+                    let detail = attempt.map { "\(message) (attempt \($0))" } ?? message
+                    setSessionStatusNote(detail, for: sessionID)
+                    markSession(sessionID, running: true)
+                    appendActivity(kind: .step, title: "Retrying", detail: detail, state: "Retry", sessionID: sessionID)
+                } else {
+                    setSessionStatusNote(nil, for: sessionID)
+                    markSession(sessionID, running: event.sessionStatus == "busy" && event.type != "session.idle")
+                }
             }
         case "session.updated":
             applySessionUpdated(event)
@@ -707,6 +722,9 @@ final class AppState: ObservableObject {
             attachSessionError(detail, to: sessionID)
             markSession(sessionID, running: false)
             appendActivity(kind: .step, title: "Session error", detail: detail, state: "Failed", sessionID: sessionID)
+            if let session = sessions.first(where: { $0.id == sessionID }) {
+                writeDebugLog(for: session)
+            }
             return
         }
 
@@ -888,6 +906,26 @@ final class AppState: ObservableObject {
         )
     }
 
+    // Raw SSE event bodies, one per line, so provider-specific failure shapes (which vary
+    // by provider and aren't all known in advance) can be inspected after the fact instead
+    // of guessed at from AppLog's truncated type/session/message summary.
+    private func appendRawEventLog(_ eventText: String) {
+        guard let workspace = currentWorkspace else { return }
+        let logURL = URL(fileURLWithPath: workspace.path).appendingPathComponent("opencode_events_log.jsonl")
+        let compact = eventText.replacingOccurrences(of: "\n", with: "")
+        let line = "[\(Date())] \(compact)\n"
+        guard let data = line.data(using: .utf8) else { return }
+        if FileManager.default.fileExists(atPath: logURL.path) {
+            if let fileHandle = try? FileHandle(forWritingTo: logURL) {
+                fileHandle.seekToEndOfFile()
+                fileHandle.write(data)
+                fileHandle.closeFile()
+            }
+        } else {
+            try? data.write(to: logURL)
+        }
+    }
+
     private func writeDebugLog(for session: OpenCodeSession) {
         guard let workspace = currentWorkspace else { return }
         let logURL = URL(fileURLWithPath: workspace.path).appendingPathComponent("chat_debug_log.txt")
@@ -895,6 +933,9 @@ final class AppState: ObservableObject {
         log += "Running: \(session.isRunning)\n\n"
         for msg in session.messages {
             log += "[\(msg.role.rawValue)] (id: \(msg.id), streaming: \(msg.isStreaming))\n"
+            if let errorMessage = msg.errorMessage {
+                log += "  - Error: \(errorMessage.replacingOccurrences(of: "\n", with: "\\n"))\n"
+            }
             for part in msg.parts {
                 log += "  - Part: \(part.type) (\(part.id))\n"
                 log += "    Text: \(part.text.replacingOccurrences(of: "\n", with: "\\n"))\n"
@@ -948,6 +989,11 @@ final class AppState: ObservableObject {
             }
         }
         sessions[index] = session
+    }
+
+    private func setSessionStatusNote(_ note: String?, for sessionID: String) {
+        guard let index = sessions.firstIndex(where: { $0.id == sessionID }) else { return }
+        sessions[index].statusNote = note
     }
 
     // Surface a session/prompt error inline in the transcript by attaching it to
